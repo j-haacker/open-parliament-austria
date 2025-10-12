@@ -12,7 +12,6 @@ Choices may need to change in future to support more datasets.
 __all__ = []
 
 from ast import literal_eval
-import json
 import numpy as np
 from open_parliament_austria import (
     _download_collection_metadata,
@@ -26,6 +25,7 @@ from pathlib import Path
 import pickle
 import requests
 import sqlite3
+from typing import Literal
 
 index_col = ["GP_CODE", "ITYP", "INR"]
 raw_data = lib_data / "data" / "raw"
@@ -39,17 +39,14 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
         )
 
 
-def _build_global_metadataframe_from_json():
-    # storing the json could be skipped, but is handy for development
-    if not (raw_data / "global_metadata.json").is_file():
-        with open(raw_data / "global_metadata.json", "w") as f:
-            json.dump(_download_collection_metadata(), f)
-    with open(raw_data / "global_metadata.json", "r") as f:
-        antraege = json.load(f)
-    header = pd.DataFrame.from_dict(antraege["header"]).apply(
+def _build_global_metadataframe_from_json(
+    dataset: Literal["antraege"], query_dict: dict | None = None
+):
+    _json = _download_collection_metadata(dataset, query_dict)
+    header = pd.DataFrame.from_dict(_json["header"]).apply(
         lambda x: x == "1" if x.name.startswith("ist_") else x
     )
-    global_metadata_df = pd.DataFrame(antraege["rows"], columns=header.label)
+    global_metadata_df = pd.DataFrame(_json["rows"], columns=header.label)
 
     ## polish table
     date_col = [col for col in global_metadata_df.columns if "datum" in col.lower()]
@@ -67,17 +64,21 @@ def _build_global_metadataframe_from_json():
     global_metadata_df[header[header.ist_werteliste].label] = global_metadata_df[
         header[header.ist_werteliste].label
     ].map(lambda x: x if x is None else np.array(literal_eval(x)))
-    global_metadata_df = global_metadata_df.set_index(index_col).drop(
-        columns=[  # columns that seem irrelevant
-            "ZUKZ",
-            "RSS_DESC",
-            "INRNUM",  # same as INR
-            "LZ-Buttons",  # html button
-            "sysdate???",  # download timestamp
-            "WENTRY_ID",
-            "NR_GP_CODE",  # same as GP_CODE
-            "Gruppe",
-        ]
+    global_metadata_df = (
+        global_metadata_df.drop(
+            columns=[  # columns that seem irrelevant
+                "ZUKZ",
+                "RSS_DESC",
+                "INRNUM",  # same as INR
+                "LZ-Buttons",  # html button
+                "sysdate???",  # download timestamp
+                "WENTRY_ID",
+                "NR_GP_CODE",  # same as GP_CODE
+                "Gruppe",
+            ]
+        )
+        .set_index(index_col)
+        .sort_index()
     )
 
     append_global_metadata(global_metadata_df)
@@ -101,9 +102,11 @@ def _download_document(df_row: pd.Series):
         _download_file(_prepend_url(link), path / link.split("/")[-1])
 
 
-def get_global_metadata_df():
+def get_global_metadata_df(
+    dataset: Literal["antraege"], query_dict: dict | None = None
+):
     if not (raw_data / "metadata_api_101.db").is_file():
-        _build_global_metadataframe_from_json()
+        _build_global_metadataframe_from_json(dataset, query_dict)
     with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
         return (
             pd.read_sql("SELECT * FROM global", con=con)

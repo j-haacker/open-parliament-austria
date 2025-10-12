@@ -38,7 +38,9 @@ def _download_collection_metadata(
         URL, params=params, data={} if query_dict is None else json.dumps(query_dict)
     )
     if res.status_code != 200:
-        raise Exception(f"Failed with {res.status_code}!")
+        raise Exception(
+            f"Failed with {res.status_code}! (url: {res.url}, payload: {query_dict})"
+        )
     return res.json()
 
 
