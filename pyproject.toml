@@ -20,5 +20,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "fpdf",
+    "pytest",
     "ruff",
 ]
