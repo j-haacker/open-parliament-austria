@@ -1,0 +1,14 @@
+[project]
+name = "open-parliament-austria"
+version = "0.1.0"
+description = "Python community library for querying open Austrian Parliament data"
+readme = "README.md"
+authors = [
+    { name = "jan", email = "152862650+j-haacker@users.noreply.github.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.9.2,<0.10.0"]
+build-backend = "uv_build"
