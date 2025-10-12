@@ -24,5 +24,26 @@ build-backend = "uv_build"
 dev = [
     "fpdf",
     "pytest",
+    "pytest-cov",
     "ruff",
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src/open_parliament_austria --cov-report=xml --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/open_parliament_austria"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+fail_under = 80
