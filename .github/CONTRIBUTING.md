@@ -1,12 +1,16 @@
 # Contributing to Open Parliament Austria
 
-First off, thank you for considering contributing to Open Parliament Austria! 🎉 
+First off, thank you for considering contributing to Open Parliament Austria! 🎉
 
-This project aims to make parliamentary data more accessible, and we welcome contributors of all experience levels. Whether you're fixing a typo, improving documentation, or adding new features, your help is appreciated.
+This project aims to make parliamentary data more accessible, and we
+welcome contributors of all experience levels. Whether you're fixing a
+typo, improving documentation, or adding new features, your help is
+appreciated.
 
 ## New to Open Source?
 
 Don't worry! We were all beginners once. Here are some resources to help you get started:
+
 - [How to Contribute to Open Source](https://opensource.guide/how-to-contribute/)
 - [Understanding Python Basics](https://docs.python.org/3/tutorial/)
 - [Git Basics](https://git-scm.com/book/en/v2/Getting-Started-Git-Basics)
@@ -20,7 +24,7 @@ Don't worry! We were all beginners once. Here are some resources to help you get
 2. **Set Up Your Environment**
    - Install Python 3.11 or newer
    - Create a virtual environment: `python -m venv venv`
-   - Activate it: 
+   - Activate it:
      - Windows: `venv\Scripts\activate`
      - Unix/MacOS: `source venv/bin/activate`
    - Install dependencies: `pip install -e ".[dev]"`

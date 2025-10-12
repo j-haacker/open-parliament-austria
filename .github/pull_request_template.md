@@ -13,7 +13,7 @@ Please delete options that are not relevant.
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
-## Checklist:
+## Checklist
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my own code
@@ -23,12 +23,13 @@ Please delete options that are not relevant.
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
 
-## For First Time Contributors:
+## For First Time Contributors
 
 - [ ] I have read the [CONTRIBUTING.md](../CONTRIBUTING.md) file
 - [ ] I have added my name to the contributors list (if applicable)
 
-## Screenshots (if appropriate):
+## Screenshots (if appropriate)
 
-## Additional Notes:
+## Additional Notes
+
 Any additional information that reviewers should know about this change.
