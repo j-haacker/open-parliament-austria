@@ -13,11 +13,13 @@ __all__ = []
 
 from ast import literal_eval
 from bs4 import BeautifulSoup
+from collections.abc import Iterable
 import numpy as np
 from open_parliament_austria import (
     _download_collection_metadata,
     _download_file,
     _extract_txt_from_pdf,
+    _get_rowid_index,
     _get_colnames,
     _get_colname_by_type,
     lib_data,
@@ -131,32 +133,25 @@ def _download_document(df_row: pd.Series):
 def pd_read_sql(
     con: sqlite3.Connection,
     tablename: str,
-    columns: list[str] | None = None,
-    index: tuple[str, str, int] | None = None,
+    columns: Iterable[str] | None = None,
+    index: Iterable[tuple[str, str, int]] | None = None,
 ) -> pd.DataFrame:
     datetime_cols = _get_colname_by_type(con, tablename, "datetime")
     pickled_cols = _get_colname_by_type(con, tablename, "blob")
-    kwargs = dict(
-        con=con,
-        index_col=index_col,
-        parse_dates=datetime_cols,
+    query = f"SELECT {'*' if not columns else ', '.join(columns)} FROM {tablename}"
+    if index is not None:
+        rowid = _get_rowid_index(con, tablename, tuple(index_col))
+        query += f" WHERE rowid IN ({', '.join(map(str, rowid.loc[index].values))})"
+    df = (
+        pd.DataFrame(
+            con.execute(query).fetchall(),
+            columns=columns or _get_colnames(con, tablename),
+        )
+        .set_index(index_col)
+        .transform(
+            lambda col: col if col.name not in datetime_cols else pd.to_datetime(col)
+        )
     )
-    if index is None and columns is None:
-        df = pd.read_sql(tablename, **kwargs)
-    elif index is None:
-        df = pd.read_sql(
-            f"SELECT {'*' if columns is None else ', '.join(columns)} FROM {tablename}",
-            **kwargs,
-        )
-    elif len(index) == 3 and isinstance(index[0], str):  # then its a single index
-        df = pd.read_sql(
-            f"SELECT {'*' if columns is None else ', '.join(columns)} "
-            f"FROM {tablename} WHERE "
-            + " AND ".join([f"{col} = '{val}'" for col, val in zip(index_col, index)]),
-            **kwargs,
-        )
-    else:
-        raise Exception("Not implemented to extract multiple rows.")
     return df.transform(
         lambda col: col
         if col.name not in pickled_cols
@@ -168,7 +163,7 @@ def _quote_if_str(x: Any) -> str:
     return f"{x}" if not isinstance(x, str) else f"'{x}'"
 
 
-def get_geschichtsseite(df_row: pd.Series) -> pd.DataFrame:
+def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
     if not (raw_data / "metadata_api_101.db").is_file():
         raise Exception(
             "Error: Database not found. Initialize database using "
@@ -181,77 +176,88 @@ def get_geschichtsseite(df_row: pd.Series) -> pd.DataFrame:
             ).fetchone()
             is not None
         )
-        if (
-            not tbl_exists
-            or con.execute(
-                "SELECT 1 FROM geschichtsseiten "
-                "WHERE "
-                + " AND ".join(
-                    [
-                        f"{col} = {_quote_if_str(val)}"
-                        for col, val in zip(index_col, df_row.name)
-                    ]
-                )
-            ).fetchone()
-            is None
-        ):
-            url = _prepend_url(df_row.HIS_URL) + "?json=True"
-            _dict = requests.get(url).json()["content"]
-            [
-                _dict.pop(k)
-                for k in [
-                    *[
-                        ix.lower()
-                        for ix in df_row.index.to_list() + index_col
-                        if isinstance(ix, str)
-                    ],
-                    "breadcrumbs",
-                    "type",
-                    "sntype",
-                    "title",
-                    "nr_gp_code",
-                    "intranet",
-                    "description",
-                    "headwords",
-                    "topics",
-                    "names",
-                ]
-                if k in _dict
-            ]
-            new_row = pd.DataFrame.from_records(
-                [{k: v for k, v in _dict.items()}],
-                index=pd.MultiIndex.from_tuples((df_row.name,), names=index_col),
-            )
-            new_row[["update", "einlangen"]] = new_row[
-                ["update", "einlangen"]
-            ].transform(pd.to_datetime)
-            dtype_dict = {k: _sqlite3_type(v) for k, v in new_row.iloc[0].items()}
-            if tbl_exists:
-                db_col_set = set(_get_colnames(con, "geschichtsseiten"))
-                missing_cols = [
-                    col
-                    for col in db_col_set
-                    if col not in list(new_row.columns) + index_col
-                ]
-                new_row[missing_cols] = [None] * len(missing_cols)
-                dtype_dict.update(
-                    {k: "NUMERIC" for k in missing_cols}
-                )  # type not known
-                for col in [col for col in new_row.columns if col not in db_col_set]:
-                    if not col.replace("_", "").isalnum():
-                        raise Exception(
-                            f"Column name {col} is currently not allowed (only sepecial "
-                            "characters '_')."
-                        )
-                    con.execute(
-                        f"ALTER TABLE geschichtsseiten ADD COLUMN {col} {dtype_dict[col]}"
+        for idx in index:
+            if (
+                not tbl_exists
+                or con.execute(
+                    "SELECT 1 FROM geschichtsseiten "
+                    "WHERE "
+                    + " AND ".join(
+                        [
+                            f"{col} = {_quote_if_str(val)}"
+                            for col, val in zip(index_col, idx)
+                        ]
                     )
-            new_row.transform(
-                lambda col: col
-                if dtype_dict[col.name] != "BLOB"
-                else col.map(pickle.dumps)
-            ).to_sql("geschichtsseiten", con, if_exists="append", dtype=dtype_dict)
-        return pd_read_sql(con, "geschichtsseiten", index=df_row.name)
+                ).fetchone()
+                is None
+            ):
+                _dict = requests.get(
+                    _prepend_url(
+                        con.execute(
+                            "SELECT HIS_URL FROM global WHERE GP_CODE = ? "
+                            "AND ITYP = ? AND INR = ?",
+                            idx,
+                        ).fetchone()[0]
+                    ),
+                    {"json": "True"},
+                ).json()["content"]
+                [
+                    _dict.pop(k)
+                    for k in [
+                        *[
+                            ix.lower()
+                            for ix in _get_colnames(con, "global")
+                            if isinstance(ix, str)
+                        ],
+                        "breadcrumbs",
+                        "type",
+                        "sntype",
+                        "title",
+                        "nr_gp_code",
+                        "intranet",
+                        "description",
+                        "headwords",
+                        "topics",
+                        "names",
+                    ]
+                    if k in _dict
+                ]
+                new_row = pd.DataFrame.from_records(
+                    [{k: v for k, v in _dict.items()}],
+                    index=pd.MultiIndex.from_tuples((idx,), names=index_col),
+                )
+                new_row[["update", "einlangen"]] = new_row[
+                    ["update", "einlangen"]
+                ].transform(pd.to_datetime)
+                dtype_dict = {k: _sqlite3_type(v) for k, v in new_row.iloc[0].items()}
+                if tbl_exists:
+                    db_col_set = set(_get_colnames(con, "geschichtsseiten"))
+                    missing_cols = [
+                        col
+                        for col in db_col_set
+                        if col not in list(new_row.columns) + index_col
+                    ]
+                    new_row[missing_cols] = [None] * len(missing_cols)
+                    dtype_dict.update(
+                        {k: "NUMERIC" for k in missing_cols}
+                    )  # type not known
+                    for col in [
+                        col for col in new_row.columns if col not in db_col_set
+                    ]:
+                        if not col.replace("_", "").isalnum():
+                            raise Exception(
+                                f"Column name {col} is currently not allowed (only sepecial "
+                                "characters '_')."
+                            )
+                        con.execute(
+                            f"ALTER TABLE geschichtsseiten ADD COLUMN {col} {dtype_dict[col]}"
+                        )
+                new_row.transform(
+                    lambda col: col
+                    if dtype_dict[col.name] != "BLOB"
+                    else col.map(pickle.dumps)
+                ).to_sql("geschichtsseiten", con, if_exists="append", dtype=dtype_dict)
+        return pd_read_sql(con, "geschichtsseiten", index=index)
 
 
 def get_global_metadata_df(
