@@ -3,7 +3,6 @@
 __all__ = []
 
 from datetime import datetime
-from functools import cache
 import json
 import numpy as np
 import pandas as pd
@@ -54,7 +53,6 @@ def _extract_txt_from_pdf(pdf_file: Path | str):
     return "\n".join([p.extract_text() for p in pages])
 
 
-@cache
 def _get_rowid_index(
     con: sqlite3.Connection, tbl: str, index_col: tuple[str]
 ) -> pd.Series:
@@ -64,7 +62,6 @@ def _get_rowid_index(
     ).set_index(list(index_col))["rowid"]
 
 
-@cache
 def _get_colnames(con: sqlite3.Connection, tbl: str) -> list[str]:
     return [
         row[0]
