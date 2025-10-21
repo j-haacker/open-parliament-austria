@@ -2,6 +2,7 @@
 
 __all__ = []
 
+from aiohttp import ClientSession
 from datetime import datetime
 import json
 import numpy as np
@@ -38,13 +39,16 @@ def _download_collection_metadata(
     return res.json()
 
 
-def _download_file(url: str, target: Path):
+async def _download_file(session: ClientSession, url: str, target: Path):
     target.parent.mkdir(parents=True, exist_ok=True)
-    res = requests.get(url, stream=True)
-    with open(target, "wb") as f:
-        for chunk in res.iter_content(chunk_size=4096):
-            if chunk:
-                f.write(chunk)
+    async with session.get(url) as res:
+        if res.status == 200:
+            with open(target, "wb") as f:
+                async for chunk in res.content.iter_chunked(4096):
+                    if chunk:
+                        f.write(chunk)
+        else:
+            print(f"! Failed with {res.status}! (url: {res.url})")
 
 
 def _extract_txt_from_pdf(pdf_file: Path | str):
@@ -96,7 +100,7 @@ def _sqlite3_type(x: Any) -> str:
             return "DATETIME"
         case str():
             return "TEXT"
-        case set() | list() | tuple() | dict():
+        case set() | list() | tuple() | dict() | np.ndarray():
             return "BLOB"
     # anything can be stored as blob, however for hygiene raise
     raise Exception(f"Couldn't determine sqlite3 type for {x}, class {x.__class__}.")
