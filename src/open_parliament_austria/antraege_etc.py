@@ -38,11 +38,14 @@ raw_data = lib_data / "data" / "raw"
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
+    dtype_dict = {
+        k: _sqlite3_type(v)
+        for k, v in global_metadata_df.dropna(axis=0).iloc[0].items()
+    }
     with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
-        # pickle cell contents to handle lists
-        global_metadata_df.map(pickle.dumps).to_sql(
-            "global", con=con, if_exists="append"
-        )
+        global_metadata_df.transform(
+            lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
+        ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
 
 
 def _build_global_metadataframe_from_json(
