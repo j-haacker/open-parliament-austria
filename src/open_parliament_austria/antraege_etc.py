@@ -133,6 +133,29 @@ def _download_document(df_row: pd.Series):
     _download_file(_prepend_url(link), path / link.split("/")[-1])
 
 
+def _query_single_value(
+    col: str,
+    idx: tuple[str, str, int],
+    tbl: Literal["global", "geschichtsseiten"] = "global",
+    con: sqlite3.Connection | None = None,
+) -> Any:
+    # print(idx)
+    if tbl not in ["global", "geschichtsseiten"]:
+        raise Exception(f"Table name {tbl} not allowed.")
+
+    def _inner(con: sqlite3.Connection):
+        if col not in _get_colnames(con, tbl):
+            raise Exception(f"Column name {col} not in {_get_colnames(con, tbl)}.")
+        return con.execute(
+            f"SELECT {col} FROM {tbl} WHERE GP_CODE = ? AND ITYP = ? AND INR = ?", idx
+        ).fetchone()[0]
+
+    if con:
+        return _inner(con)
+    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+        return _inner(con)
+
+
 def pd_read_sql(
     con: sqlite3.Connection,
     tablename: str,
