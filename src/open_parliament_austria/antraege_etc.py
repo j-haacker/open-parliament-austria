@@ -202,7 +202,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
             ).fetchone()
             is not None
         )
-        for idx in index:
+        for idx in index:  # TODO add concurrent download?
             if (
                 not tbl_exists
                 or con.execute(
@@ -218,13 +218,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
                 is None
             ):
                 _dict = requests.get(
-                    _prepend_url(
-                        con.execute(
-                            "SELECT HIS_URL FROM global WHERE GP_CODE = ? "
-                            "AND ITYP = ? AND INR = ?",
-                            idx,
-                        ).fetchone()[0]
-                    ),
+                    _prepend_url(_query_single_value("HIS_URL", idx, "global", con)),
                     {"json": "True"},
                 ).json()["content"]
                 [
