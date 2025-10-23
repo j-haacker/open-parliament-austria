@@ -92,24 +92,19 @@ def _build_global_metadataframe_from_json(
     append_global_metadata(global_metadata_df)
 
 
-def _download_document(df_row: pd.Series):
-    url = _prepend_url(df_row.HIS_URL) + "?json=True"
-    _dict = requests.get(url).json()
-    print(_dict)
-    if "documents" in _dict["content"]:
-        docs = _dict["content"]["documents"]
-    print(docs)
-    if "docs" not in locals() or len(docs) == 0:
-        raise Exception(f"No docs for {df_row.name}.")
-    elif len(docs) > 2:
+def _download_document(idx: tuple[str, str, int]):
+    [d["documents"] for d in _query_single_value("documents", idx, "geschichtsseiten")]
+    if "docs" not in locals() or len(docs) == 0:  # noqa: F821
+        raise Exception(f"No docs for {idx}.")
+    elif len(docs) > 2:  # noqa: F821
         # See what docs are included and implement handling
-        raise Exception(f"Not implmented. Docs:\n{repr(docs)}")
-    elif len(docs) > 1:
+        raise Exception(f"Not implmented. Docs:\n{repr(docs)}")  # noqa: F821
+    elif len(docs) > 1:  # noqa: F821
         # prefer digital version
-        if any(["(elektr. übermittelte Version)" in doc["title"] for doc in docs]):
+        if any(["(elektr. übermittelte Version)" in doc["title"] for doc in docs]):  # noqa: F821
             docs = next(
                 doc["documents"]
-                for doc in docs
+                for doc in docs  # noqa: F821
                 if "(elektr. übermittelte Version)" in doc["title"]
             )
         # otherwise select original
@@ -128,7 +123,7 @@ def _download_document(df_row: pd.Series):
         if docs["type"] != "PDF":
             raise Exception(f"Not implemented for type {doc['type']}.")
         link = doc["link"]
-    path = Path(raw_data, *list(map(str, df_row.name)))
+    path = Path(raw_data, *list(map(str, idx)))
     _download_file(_prepend_url(link), path / link.split("/")[-1])
 
 
