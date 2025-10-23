@@ -12,6 +12,7 @@ Choices may need to change in future to support more datasets.
 __all__ = []
 
 from aiohttp import ClientSession
+import asyncio
 from ast import literal_eval
 from bs4 import BeautifulSoup
 from collections.abc import Iterable
@@ -136,7 +137,9 @@ def _download_document(idx: tuple[str, str, int]):
             raise Exception(f"Not implemented for type {doc['type']}.")
         link = doc["link"]
     path = Path(raw_data, *list(map(str, idx)))
-    _download_file(ClientSession(), _prepend_url(link), path / link.split("/")[-1])
+    asyncio.run(
+        _download_file(ClientSession(), _prepend_url(link), path / link.split("/")[-1])
+    )
 
 
 def _query_single_value(
