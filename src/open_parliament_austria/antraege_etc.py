@@ -92,6 +92,17 @@ def _build_global_metadataframe_from_json(
     append_global_metadata(global_metadata_df)
 
 
+def _create_raw_text_db_tbl():
+    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS raw_text("
+            "{0} TEXT, {1} TEXT, {2} INTEGER, "
+            "file_name TEXT, title TEXT, raw_text TEXT, "
+            "FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2})"
+            ")".format(*index_col)
+        )
+
+
 def _download_document(idx: tuple[str, str, int]):
     [d["documents"] for d in _query_single_value("documents", idx, "geschichtsseiten")]
     if "docs" not in locals() or len(docs) == 0:  # noqa: F821
