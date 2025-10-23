@@ -353,16 +353,46 @@ def get_global_metadata_df(
         )
 
 
-def get_antragstext(df_row: pd.Series) -> str:
-    path = Path(raw_data, *list(map(str, df_row.name)))
-    if not path.exists():
-        _download_document(df_row)
-    if len(list(path.glob("*.txt"))) == 0:
-        for file in path.glob("*.pdf"):
-            with open(file.with_suffix(".txt"), "w") as f:
-                f.write(_extract_txt_from_pdf(file))
-        for file in path.glob("*.html"):
-            with open(file, "r") as f_in, open(file.with_suffix(".txt"), "w") as f_out:
-                f_out.write(BeautifulSoup(f_in.read(), "html.parser").body.text)
-    with open(next(path.glob("*.txt")), "r") as f:
-        return f.read()
+def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
+    query = "SELECT raw_text FROM raw_text WHERE" + 4 * " {} = ? AND"
+
+    def _fetch():
+        return con.execute(
+            query[:-4].format(*index_col, "file_name"), [*idx, file_name]
+        ).fetchone()
+
+    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+        try:
+            text = _fetch()[0]
+        except (sqlite3.OperationalError, TypeError) as err:
+            if str(err).startswith("no such table"):
+                _create_raw_text_db_tbl()
+            elif str(err) != "'NoneType' object is not subscriptable":
+                raise err
+            path = Path(raw_data, *list(map(str, idx)), file_name)
+            if not path.exists():
+                asyncio.run(
+                    _download_file(
+                        ClientSession(),
+                        "/document/" + "/".join(list(map(str, idx)) + [file_name]),
+                        path,
+                    )
+                )
+            if path.suffix.lower() == ".pdf":
+                text = _extract_txt_from_pdf(path)
+            elif path.suffix.lower() in [".html", ".hml"]:
+                with open(path, "r") as f_in:
+                    text = BeautifulSoup(f_in.read(), "html.parser").body.text
+            else:
+                raise Exception(f"File extension not recognized: {file_name}")
+            for doc in pickle.loads(
+                _query_single_value("documents", idx, "geschichtsseiten")
+            ):
+                if any([d["link"].endswith(file_name) for d in doc["documents"]]):
+                    break
+            title = doc["title"]
+            con.execute(
+                "INSERT INTO raw_text VALUES(" + 5 * "?, " + "?)",
+                [*idx, file_name, title, text],
+            )
+    return text
