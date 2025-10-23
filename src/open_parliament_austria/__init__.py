@@ -71,7 +71,7 @@ def _get_colnames(con: sqlite3.Connection, tbl: str) -> list[str]:
     return [
         row[0]
         for row in con.execute(
-            f"SELECT name FROM pragma_table_info('{tbl}')"
+            "SELECT name FROM pragma_table_info(?)", [tbl]
         ).fetchall()
     ]
 
