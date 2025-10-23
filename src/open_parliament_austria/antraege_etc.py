@@ -38,6 +38,28 @@ from typing import Any, Literal
 index_col = ["GP_CODE", "ITYP", "INR"]
 
 
+def _add_missing_db_cols(
+    table_name: str, df: pd.DataFrame, con: sqlite3.Connection | None = None
+):
+    def _inner(con):
+        db_col_set = set(_get_colnames(con, table_name))
+        dtype_dict = {k: _sqlite3_type(df[k].dropna().iloc[0]) for k in df.columns}
+        for col in [col for col in df.columns if col not in db_col_set]:
+            if not col.replace("_", "").isalnum():
+                raise Exception(
+                    f"Column name {col} is currently not allowed (only sepecial "
+                    "characters '_')."
+                )
+            con.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN '{col}' {dtype_dict[col]}"
+            )
+
+    if con:
+        return _inner(con)
+    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+        return _inner(con)
+
+
 def append_global_metadata(global_metadata_df: pd.DataFrame):
     dtype_dict = {
         k: _sqlite3_type(v)
@@ -90,8 +112,19 @@ def _build_global_metadataframe_from_json(
         .set_index(index_col)
         .sort_index()
     )
+    _create_global_db_tbl()
+    _add_missing_db_cols("global", global_metadata_df)
 
     append_global_metadata(global_metadata_df)
+
+
+def _create_global_db_tbl():
+    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+        sql = (
+            "CREATE TABLE IF NOT EXISTS global({0} TEXT, {1} TEXT, {2} INTEGER); "
+            "CREATE UNIQUE INDEX ix_global_GP_CODE_ITYP_INR ON global({0}, {1}, {2});"
+        )
+        con.executescript(sql.format(*index_col))
 
 
 def _create_raw_text_db_tbl():
