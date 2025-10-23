@@ -259,16 +259,16 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
             "`get_global_metadata_df(dataset, query)`."
         )
     with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
-        tbl_exists = (
+        if (
             con.execute(
                 "SELECT 1 FROM sqlite_master WHERE name='geschichtsseiten'"
             ).fetchone()
-            is not None
-        )
+            is None
+        ):
+            _create_child_db_tbl("geschichtsseiten")
         for idx in index:  # TODO add concurrent download?
             if (
-                not tbl_exists
-                or con.execute(
+                con.execute(
                     "SELECT 1 FROM geschichtsseiten "
                     "WHERE "
                     + " AND ".join(
@@ -313,28 +313,25 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
                     ["update", "einlangen"]
                 ].transform(pd.to_datetime)
                 dtype_dict = {k: _sqlite3_type(v) for k, v in new_row.iloc[0].items()}
-                if tbl_exists:
-                    db_col_set = set(_get_colnames(con, "geschichtsseiten"))
-                    missing_cols = [
-                        col
-                        for col in db_col_set
-                        if col not in list(new_row.columns) + index_col
-                    ]
-                    new_row[missing_cols] = [None] * len(missing_cols)
-                    dtype_dict.update(
-                        {k: "NUMERIC" for k in missing_cols}
-                    )  # type not known
-                    for col in [
-                        col for col in new_row.columns if col not in db_col_set
-                    ]:
-                        if not col.replace("_", "").isalnum():
-                            raise Exception(
-                                f"Column name {col} is currently not allowed (only sepecial "
-                                "characters '_')."
-                            )
-                        con.execute(
-                            f"ALTER TABLE geschichtsseiten ADD COLUMN {col} {dtype_dict[col]}"
+                db_col_set = set(_get_colnames(con, "geschichtsseiten"))
+                missing_cols = [
+                    col
+                    for col in db_col_set
+                    if col not in list(new_row.columns) + index_col
+                ]
+                new_row[missing_cols] = [None] * len(missing_cols)
+                dtype_dict.update(
+                    {k: "NUMERIC" for k in missing_cols}
+                )  # type not known
+                for col in [col for col in new_row.columns if col not in db_col_set]:
+                    if not col.replace("_", "").isalnum():
+                        raise Exception(
+                            f"Column name {col} is currently not allowed (only sepecial "
+                            "characters '_')."
                         )
+                    con.execute(
+                        f"ALTER TABLE geschichtsseiten ADD COLUMN {col} {dtype_dict[col]}"
+                    )
                 new_row.transform(
                     lambda col: col
                     if dtype_dict[col.name] != "BLOB"
