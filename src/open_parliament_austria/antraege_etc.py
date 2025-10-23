@@ -22,7 +22,7 @@ from open_parliament_austria import (
     _get_rowid_index,
     _get_colnames,
     _get_colname_by_type,
-    lib_data,
+    raw_data,
     _prepend_url,
     _sqlite3_type,
 )
@@ -34,7 +34,6 @@ import sqlite3
 from typing import Any, Literal
 
 index_col = ["GP_CODE", "ITYP", "INR"]
-raw_data = lib_data / "data" / "raw"
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):

@@ -14,6 +14,7 @@ import sqlite3
 from typing import Any, Literal
 
 lib_data = Path.home() / ".open-parliament-austria"
+raw_data = lib_data / "data" / "raw"
 
 
 def _download_collection_metadata(
