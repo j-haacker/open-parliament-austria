@@ -128,6 +128,26 @@ def _create_global_db_tbl():
         con.executescript(sql.format(*index_col))
 
 
+def _create_child_db_tbl(
+    table_name: str, columns: list[str] = [], _types: list[str] = []
+):
+    for name in [table_name, *columns, *_types]:
+        if not name.replace("_", "").isalnum():
+            raise Exception(
+                f"Column name {name} is currently not allowed (only sepecial "
+                "characters '_')."
+            )
+    sql = (
+        "CREATE TABLE IF NOT EXISTS {3}("
+        "{0} TEXT, {1} TEXT, {2} INTEGER, "
+        + ", ".join([f"{c} {t}" for c, t in zip(columns, _types)])
+        + "FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2})"
+        ")"
+    ).format(*index_col, table_name)
+    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+        con.execute(sql)
+
+
 def _create_raw_text_db_tbl():
     with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
         con.execute(
