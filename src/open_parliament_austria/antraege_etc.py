@@ -99,6 +99,7 @@ def _build_global_metadataframe_from_json(
     global_metadata_df = (
         global_metadata_df.drop(
             columns=[  # columns that seem irrelevant
+                "Zust?",  # always ZZZZ ?
                 "ZUKZ",
                 "RSS_DESC",
                 "INRNUM",  # same as INR
