@@ -16,6 +16,7 @@ import asyncio
 from ast import literal_eval
 from bs4 import BeautifulSoup
 from collections.abc import Iterable
+from contextlib import contextmanager
 import numpy as np
 from open_parliament_austria import (
     _download_collection_metadata,
@@ -56,7 +57,7 @@ def _add_missing_db_cols(
 
     if con:
         return _inner(con)
-    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         return _inner(con)
 
 
@@ -65,7 +66,7 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
         k: _sqlite3_type(v)
         for k, v in global_metadata_df.dropna(axis=0).iloc[0].items()
     }
-    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         global_metadata_df.transform(
             lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
         ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
@@ -120,7 +121,7 @@ def _build_global_metadataframe_from_json(
 
 
 def _create_global_db_tbl():
-    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         sql = (
             "CREATE TABLE IF NOT EXISTS global({0} TEXT, {1} TEXT, {2} INTEGER); "
             "CREATE UNIQUE INDEX ix_global_GP_CODE_ITYP_INR ON global({0}, {1}, {2});"
@@ -144,12 +145,12 @@ def _create_child_db_tbl(
         + "FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2})"
         ")"
     ).format(*index_col, table_name)
-    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         con.execute(sql)
 
 
 def _create_raw_text_db_tbl():
-    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         con.execute(
             "CREATE TABLE IF NOT EXISTS raw_text("
             "{0} TEXT, {1} TEXT, {2} INTEGER, "
@@ -196,14 +197,20 @@ def _download_document(idx: tuple[str, str, int]):
     )
 
 
+@contextmanager
+def get_db_connection():
+    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+        yield con
+
+
 def _query_single_value(
     col: str,
     idx: tuple[str, str, int],
-    tbl: Literal["global", "geschichtsseiten"] = "global",
+    tbl: Literal["global", "geschichtsseiten", "raw_text"] = "global",
     con: sqlite3.Connection | None = None,
 ) -> Any:
     # print(idx)
-    if tbl not in ["global", "geschichtsseiten"]:
+    if tbl not in ["global", "geschichtsseiten", "raw_text"]:
         raise Exception(f"Table name {tbl} not allowed.")
 
     def _inner(con: sqlite3.Connection):
@@ -215,7 +222,7 @@ def _query_single_value(
 
     if con:
         return _inner(con)
-    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         return _inner(con)
 
 
@@ -258,7 +265,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
             "Error: Database not found. Initialize database using "
             "`get_global_metadata_df(dataset, query)`."
         )
-    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         if (
             con.execute(
                 "SELECT 1 FROM sqlite_master WHERE name='geschichtsseiten'"
@@ -345,7 +352,7 @@ def get_global_metadata_df(
 ):
     if not (raw_data / "metadata_api_101.db").is_file():
         _build_global_metadataframe_from_json(dataset, query_dict)
-    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         return (
             pd.read_sql("SELECT * FROM global", con=con)
             .map(lambda x: x if not isinstance(x, bytes) else pickle.loads(x))
@@ -361,7 +368,7 @@ def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
             query[:-4].format(*index_col, "file_name"), [*idx, file_name]
         ).fetchone()
 
-    with sqlite3.Connection(raw_data / "metadata_api_101.db") as con:
+    with get_db_connection() as con:
         try:
             text = _fetch()[0]
         except (sqlite3.OperationalError, TypeError) as err:
