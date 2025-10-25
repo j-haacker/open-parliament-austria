@@ -234,15 +234,16 @@ def pd_read_sql(
 ) -> pd.DataFrame:
     datetime_cols = _get_colname_by_type(con, tablename, "datetime")
     pickled_cols = _get_colname_by_type(con, tablename, "blob")
-    query = f"SELECT {'*' if not columns else ', '.join(columns)} FROM {tablename}"
+    if columns is None:
+        columns = _get_colnames(con, tablename)
+    else:
+        columns = index_col + columns
+    query = f"SELECT {', '.join(columns)} FROM {tablename}"
     if index is not None:
         rowid = _get_rowid_index(con, tablename, tuple(index_col))
         query += f" WHERE rowid IN ({', '.join(map(str, rowid.loc[index].values))})"
     df = (
-        pd.DataFrame(
-            con.execute(query).fetchall(),
-            columns=columns or _get_colnames(con, tablename),
-        )
+        pd.DataFrame(con.execute(query).fetchall(), columns=columns)
         .set_index(index_col)
         .transform(
             lambda col: col if col.name not in datetime_cols else pd.to_datetime(col)
