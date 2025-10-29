@@ -78,7 +78,7 @@ def _build_global_metadataframe_from_json(
     _json = _download_collection_metadata(dataset, query_dict)
     header = pd.DataFrame.from_dict(_json["header"]).apply(
         lambda x: x == "1" if x.name.startswith("ist_") else x
-    )
+    ).iloc[:len(_json["rows"][0])]
     global_metadata_df = pd.DataFrame(_json["rows"], columns=header.label)
 
     ## polish table
