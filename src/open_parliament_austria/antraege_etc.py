@@ -27,6 +27,7 @@ from open_parliament_austria import (
     _get_colname_by_type,
     raw_data,
     _prepend_url,
+    _sql_keywords,
     _sqlite3_type,
 )
 import pandas as pd
@@ -46,14 +47,8 @@ def _add_missing_db_cols(
         db_col_set = set(_get_colnames(con, table_name))
         dtype_dict = {k: _sqlite3_type(df[k].dropna().iloc[0]) for k in df.columns}
         for col in [col for col in df.columns if col not in db_col_set]:
-            if not col.replace("_", "").isalnum():
-                raise Exception(
-                    f"Column name {col} is currently not allowed (only sepecial "
-                    "characters '_')."
-                )
-            con.execute(
-                f"ALTER TABLE {table_name} ADD COLUMN '{col}' {dtype_dict[col]}"
-            )
+            _ensure_allowed_col_name(col)
+            con.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} {dtype_dict[col]}")
 
     if con:
         return _inner(con)
@@ -133,11 +128,7 @@ def _create_child_db_tbl(
     table_name: str, columns: list[str] = [], _types: list[str] = []
 ):
     for name in [table_name, *columns, *_types]:
-        if not name.replace("_", "").isalnum():
-            raise Exception(
-                f"Column name {name} is currently not allowed (only sepecial "
-                "characters '_')."
-            )
+        _ensure_allowed_col_name(name)
     sql = (
         "CREATE TABLE IF NOT EXISTS {3}("
         "{0} TEXT, {1} TEXT, {2} INTEGER, "
@@ -195,6 +186,14 @@ def _create_raw_text_db_tbl():
 #     asyncio.run(
 #         _download_file(ClientSession(), _prepend_url(link), path / link.split("/")[-1])
 #     )
+
+
+def _ensure_allowed_col_name(col: str):
+    if col.upper() in _sql_keywords or not col.replace("_", "").isalnum():
+        raise Exception(
+            f"Column name {col} is currently not allowed (only sepecial "
+            "characters '_' and no SQL keywords)."
+        )
 
 
 @contextmanager
@@ -387,11 +386,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
                     {k: "NUMERIC" for k in missing_cols}
                 )  # type not known
                 for col in [col for col in new_row.columns if col not in db_col_set]:
-                    if not col.replace("_", "").isalnum():
-                        raise Exception(
-                            f"Column name {col} is currently not allowed (only sepecial "
-                            "characters '_')."
-                        )
+                    _ensure_allowed_col_name(col)
                     con.execute(
                         f"ALTER TABLE geschichtsseiten ADD COLUMN {col} {dtype_dict[col]}"
                     )
