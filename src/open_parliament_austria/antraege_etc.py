@@ -369,8 +369,11 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
                     [{k: v for k, v in _dict.items()}],
                     index=pd.MultiIndex.from_tuples((idx,), names=index_col),
                 )
-                new_row[["update", "einlangen"]] = new_row[
-                    ["update", "einlangen"]
+                new_row.rename(
+                    columns={"update": "_update", "group": "_group"}, inplace=True
+                )
+                new_row[["_update", "einlangen"]] = new_row[
+                    ["_update", "einlangen"]
                 ].transform(pd.to_datetime)
                 dtype_dict = {k: _sqlite3_type(v) for k, v in new_row.iloc[0].items()}
                 db_col_set = set(_get_colnames(con, "geschichtsseiten"))
