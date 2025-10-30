@@ -69,13 +69,14 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
         ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
 
 
-def _build_global_metadataframe_from_json(
-    dataset: Literal["antraege"], query_dict: dict | None = None
-):
-    _json = _download_collection_metadata(dataset, query_dict)
-    header = pd.DataFrame.from_dict(_json["header"]).apply(
-        lambda x: x == "1" if x.name.startswith("ist_") else x
-    ).iloc[:len(_json["rows"][0])]
+def download_global_metadata(query_dict: dict | None = None):
+    #  API results seem to undergo overhaul. column labels change
+    _json = _download_collection_metadata(dataset="antraege", query_dict=query_dict)
+    header = (
+        pd.DataFrame.from_dict(_json["header"])
+        .apply(lambda x: x == "1" if x.name.startswith("ist_") else x)
+        .iloc[: len(_json["rows"][0])]
+    )
     global_metadata_df = pd.DataFrame(_json["rows"], columns=header.label)
 
     ## polish table
