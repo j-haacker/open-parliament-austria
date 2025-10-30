@@ -131,7 +131,7 @@ def _create_global_db_tbl():
     with get_db_connection() as con:
         sql = (
             "CREATE TABLE IF NOT EXISTS global({0} TEXT, {1} TEXT, {2} INTEGER); "
-            "CREATE UNIQUE INDEX ix_global_GP_CODE_ITYP_INR ON global({0}, {1}, {2});"
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_global_GP_CODE_ITYP_INR ON global({0}, {1}, {2});"
         )
         con.executescript(sql.format(*index_col))
 
