@@ -16,7 +16,6 @@ import asyncio
 from ast import literal_eval
 from bs4 import BeautifulSoup
 from collections.abc import Iterable
-from contextlib import contextmanager
 import numpy as np
 from open_parliament_austria import (
     _add_missing_db_cols,
@@ -28,6 +27,7 @@ from open_parliament_austria import (
     _get_rowid_index,
     _get_colnames,
     _get_colname_by_type,
+    _get_db_connector,
     raw_data,
     _prepend_url,
     _sqlite3_type,
@@ -42,11 +42,8 @@ from typing import Any, Literal
 
 sqlite3.register_adapter(np.int_, lambda i: int(i))
 
+db_con = _get_db_connector("metadata_api_101.db")
 index_col = ["GP_CODE", "ITYP", "INR"]
-
-
-def db_path():
-    return raw_data() / "metadata_api_101.db"
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
@@ -54,7 +51,7 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
         k: _sqlite3_type(v)
         for k, v in global_metadata_df.dropna(axis=0).iloc[0].items()
     }
-    with get_db_connection() as con:
+    with db_con() as con:
         global_metadata_df.transform(
             lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
         ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
@@ -104,13 +101,13 @@ def download_global_metadata(query_dict: dict | None = None):
 
     ## write to db
     _create_global_db_tbl()
-    with get_db_connection() as con:
+    with db_con() as con:
         _add_missing_db_cols(con, "global", global_metadata_df)
         _append_global_metadata(con, global_metadata_df)
 
 
 def _create_global_db_tbl():
-    with get_db_connection() as con:
+    with db_con() as con:
         sql = (
             "CREATE TABLE IF NOT EXISTS global({0} TEXT, {1} TEXT, {2} INTEGER); "
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_global_GP_CODE_ITYP_INR ON global({0}, {1}, {2});"
@@ -130,12 +127,12 @@ def _create_child_db_tbl(
         + "FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2})"
         ")"
     ).format(*index_col, table_name)
-    with get_db_connection() as con:
+    with db_con() as con:
         con.execute(sql)
 
 
 def _create_raw_text_db_tbl():
-    with get_db_connection() as con:
+    with db_con() as con:
         con.execute(
             "CREATE TABLE IF NOT EXISTS raw_text("
             "{0} TEXT, {1} TEXT, {2} INTEGER, "
@@ -182,13 +179,6 @@ def _create_raw_text_db_tbl():
 #     )
 
 
-@contextmanager
-def get_db_connection():
-    db_path().parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path()) as con:
-        yield con
-
-
 def _query_single_value(
     col: str,
     idx: tuple[str, str, int],
@@ -208,7 +198,7 @@ def _query_single_value(
 
     if con:
         return _inner(con)
-    with get_db_connection() as con:
+    with db_con() as con:
         return _inner(con)
 
 
@@ -254,7 +244,7 @@ def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
             query[:-4].format(*index_col, "file_name"), [*idx, file_name]
         ).fetchone()
 
-    with get_db_connection() as con:
+    with db_con() as con:
         try:
             text = _fetch()[0]
         except (sqlite3.OperationalError, TypeError) as err:
@@ -299,18 +289,14 @@ def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
 
 
 def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
-    if not db_path().is_file():
-        raise Exception(
-            "Error: Database not found. Initialize database using "
-            "`get_global_metadata_df(dataset, query)`."
-        )
-    with get_db_connection() as con:
-        if (
-            con.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='geschichtsseiten'"
-            ).fetchone()
-            is None
-        ):
+    with db_con() as con:
+        db_tables = [n[0] for n in con.execute("SELECT name FROM sqlite_master")]
+        if "global" not in db_tables:
+            raise Exception(
+                "Error: Database not found. Initialize database using "
+                "`get_global_metadata_df(dataset, query)`."
+            )
+        elif "geschichtsseiten" not in db_tables:
             _create_child_db_tbl("geschichtsseiten")
         for idx in index:  # TODO add concurrent download?
             if (
@@ -387,7 +373,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
 
 def get_global_metadata_df() -> pd.DataFrame:
     try:
-        with get_db_connection() as con:
+        with db_con() as con:
             return pd_read_sql(con, "global")
     except FileNotFoundError as err:
         raise Exception(

@@ -3,6 +3,7 @@
 __all__ = []
 
 from aiohttp import ClientSession
+from contextlib import contextmanager
 from datetime import datetime
 import json
 import numpy as np
@@ -92,6 +93,16 @@ def _extract_txt_from_pdf(pdf_file: Path | str):
     reader = PdfReader(pdf_file)
     pages = reader.pages
     return "\n".join([p.extract_text() for p in pages])
+
+
+def _get_db_connector(file_name: str) -> callable:
+    @contextmanager
+    def _exp_func():
+        raw_data().mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(raw_data() / file_name) as con:
+            yield con
+
+    return _exp_func
 
 
 def _get_rowid_index(

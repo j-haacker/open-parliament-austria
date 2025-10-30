@@ -4,13 +4,14 @@
 # from pathlib import Path
 # import pandas as pd
 import pytest
+
 # import pickle
 # import sqlite3
 # from unittest.mock import patch, MagicMock
-
+from open_parliament_austria import _get_db_connector
 from open_parliament_austria.antraege_etc import (
     # append_global_metadata,
-    db_path,
+    # db_path,
     download_global_metadata,
     # _download_document,
     get_geschichtsseiten,
@@ -24,8 +25,8 @@ from open_parliament_austria.antraege_etc import (
 )
 
 
-def test_db_path():
-    assert db_path().parent == raw_data()
+# def test_db_path():
+#     assert db_path().parent == raw_data()
 
 
 def test__quote_if_str():
@@ -35,6 +36,7 @@ def test__quote_if_str():
 
 @pytest.fixture(scope="module")
 def init_db():
+    print(raw_data())
     download_global_metadata(
         {"GP_CODE": ["XXVII"], "DOKTYP": ["A"], "INRNUM": ["1", "10"]}
     )
@@ -70,3 +72,11 @@ def test_get_antragstext(init_db):
     tmp = get_antragstext(idx[0], file_name)
     assert isinstance(tmp, str)
     assert len(tmp) > 50
+
+
+def test_get_geschichtsseiten_fail(monkeypatch):
+    import open_parliament_austria.antraege_etc as mod
+
+    monkeypatch.setattr(mod, "db_con", _get_db_connector("xyz.db"))
+    with pytest.raises(Exception, match="Error: Database not found."):
+        get_geschichtsseiten([("XXVII", "A", "5")])
