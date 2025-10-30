@@ -348,59 +348,12 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
         return pd_read_sql(con, "geschichtsseiten", index=index)
 
 
-def get_global_metadata_df(
-    dataset: Literal["antraege"], query_dict: dict | None = None
-):
-    if not (raw_data / "metadata_api_101.db").is_file():
-        _build_global_metadataframe_from_json(dataset, query_dict)
-    with get_db_connection() as con:
-        return (
-            pd.read_sql("SELECT * FROM global", con=con)
-            .map(lambda x: x if not isinstance(x, bytes) else pickle.loads(x))
-            .set_index(index_col)
+def get_global_metadata_df() -> pd.DataFrame:
+    try:
+        with get_db_connection() as con:
+            return pd_read_sql(con, "global")
+    except FileNotFoundError as err:
+        raise Exception(
+            "FileNotFoundError: Likely database is missing. If you haven't, run "
+            f"`download_global_metadata(query_dict)`. Original error was:\n{str(err)}"
         )
-
-
-def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
-    query = "SELECT raw_text FROM raw_text WHERE" + 4 * " {} = ? AND"
-
-    def _fetch():
-        return con.execute(
-            query[:-4].format(*index_col, "file_name"), [*idx, file_name]
-        ).fetchone()
-
-    with get_db_connection() as con:
-        try:
-            text = _fetch()[0]
-        except (sqlite3.OperationalError, TypeError) as err:
-            if str(err).startswith("no such table"):
-                _create_raw_text_db_tbl()
-            elif str(err) != "'NoneType' object is not subscriptable":
-                raise err
-            path = Path(raw_data, *list(map(str, idx)), file_name)
-            if not path.exists():
-                asyncio.run(
-                    _download_file(
-                        ClientSession(),
-                        "/document/" + "/".join(list(map(str, idx)) + [file_name]),
-                        path,
-                    )
-                )
-            if path.suffix.lower() == ".pdf":
-                text = _extract_txt_from_pdf(path)
-            elif path.suffix.lower() in [".html", ".hml"]:
-                with open(path, "r") as f_in:
-                    text = BeautifulSoup(f_in.read(), "html.parser").body.text
-            else:
-                raise Exception(f"File extension not recognized: {file_name}")
-            for doc in pickle.loads(
-                _query_single_value("documents", idx, "geschichtsseiten")
-            ):
-                if any([d["link"].endswith(file_name) for d in doc["documents"]]):
-                    break
-            title = doc["title"]
-            con.execute(
-                "INSERT INTO raw_text VALUES(" + 5 * "?, " + "?)",
-                [*idx, file_name, title, text],
-            )
-    return text
