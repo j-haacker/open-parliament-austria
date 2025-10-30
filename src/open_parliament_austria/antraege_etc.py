@@ -37,6 +37,8 @@ import requests
 import sqlite3
 from typing import Any, Literal
 
+sqlite3.register_adapter(np.int_, lambda i: int(i))
+
 index_col = ["GP_CODE", "ITYP", "INR"]
 
 
