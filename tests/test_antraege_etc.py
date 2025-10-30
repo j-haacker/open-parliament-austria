@@ -21,7 +21,6 @@ from open_parliament_austria.antraege_etc import (
     # index_col,
     # pd_read_sql,
     _quote_if_str,
-    raw_data,
 )
 
 
@@ -36,7 +35,6 @@ def test__quote_if_str():
 
 @pytest.fixture(scope="module")
 def init_db():
-    print(raw_data())
     download_global_metadata(
         {"GP_CODE": ["XXVII"], "DOKTYP": ["A"], "INRNUM": ["1", "10"]}
     )
