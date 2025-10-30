@@ -172,6 +172,10 @@ def _prepend_url(path: str) -> str:
     return "https://www.parlament.gv.at" + path
 
 
+def _quote_if_str(x: Any) -> Any:
+    return x if not isinstance(x, str) else f"'{x}'"
+
+
 def _sqlite3_type(x: Any) -> str:
     match x:
         case None:

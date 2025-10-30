@@ -29,6 +29,7 @@ from open_parliament_austria import (
     _get_pd_sql_reader,
     raw_data,
     _prepend_url,
+    _quote_if_str,
     _sqlite3_type,
 )
 from open_parliament_austria.resources import _column_name_dict_101
@@ -200,10 +201,6 @@ def _query_single_value(
         return _inner(con)
     with db_con() as con:
         return _inner(con)
-
-
-def _quote_if_str(x: Any) -> Any:
-    return x if not isinstance(x, str) else f"'{x}'"
 
 
 def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
