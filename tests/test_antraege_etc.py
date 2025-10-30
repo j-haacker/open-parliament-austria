@@ -66,6 +66,7 @@ def test_get_antragstext(init_db):
         .documents[0]["documents"][0]["link"]
         .split("/")[-1]
     )
+    get_antragstext(idx[0], file_name)  # test both branches: download and preexisting
     tmp = get_antragstext(idx[0], file_name)
     assert isinstance(tmp, str)
     assert len(tmp) > 50

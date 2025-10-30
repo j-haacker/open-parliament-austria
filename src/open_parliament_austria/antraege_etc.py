@@ -19,8 +19,10 @@ from collections.abc import Iterable
 from contextlib import contextmanager
 import numpy as np
 from open_parliament_austria import (
+    _add_missing_db_cols,
     _download_collection_metadata,
     _download_file,
+    _ensure_allowed_sql_name,
     _extract_txt_from_pdf,
     _get_rowid_index,
     _get_colnames,
@@ -29,7 +31,7 @@ from open_parliament_austria import (
     _prepend_url,
     _sqlite3_type,
 )
-from open_parliament_austria.resources import _column_name_dict_101, _sql_keywords
+from open_parliament_austria.resources import _column_name_dict_101
 import pandas as pd
 from pathlib import Path
 import pickle
@@ -44,22 +46,6 @@ index_col = ["GP_CODE", "ITYP", "INR"]
 
 def db_path():
     return raw_data() / "metadata_api_101.db"
-
-
-def _add_missing_db_cols(
-    table_name: str, df: pd.DataFrame, con: sqlite3.Connection | None = None
-):
-    def _inner(con):
-        db_col_set = set(_get_colnames(con, table_name))
-        dtype_dict = {k: _sqlite3_type(df[k].dropna().iloc[0]) for k in df.columns}
-        for col in [col for col in df.columns if col not in db_col_set]:
-            _ensure_allowed_col_name(col)
-            con.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} {dtype_dict[col]}")
-
-    if con:
-        return _inner(con)
-    with get_db_connection() as con:
-        return _inner(con)
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
@@ -117,7 +103,8 @@ def download_global_metadata(query_dict: dict | None = None):
 
     ## write to db
     _create_global_db_tbl()
-    _add_missing_db_cols("global", global_metadata_df)
+    with get_db_connection() as con:
+        _add_missing_db_cols(con, "global", global_metadata_df)
     append_global_metadata(global_metadata_df)
 
 
@@ -134,7 +121,7 @@ def _create_child_db_tbl(
     table_name: str, columns: list[str] = [], _types: list[str] = []
 ):
     for name in [table_name, *columns, *_types]:
-        _ensure_allowed_col_name(name)
+        _ensure_allowed_sql_name(name)
     sql = (
         "CREATE TABLE IF NOT EXISTS {3}("
         "{0} TEXT, {1} TEXT, {2} INTEGER, "
@@ -192,14 +179,6 @@ def _create_raw_text_db_tbl():
 #     asyncio.run(
 #         _download_file(ClientSession(), _prepend_url(link), path / link.split("/")[-1])
 #     )
-
-
-def _ensure_allowed_col_name(col: str):
-    if col.upper() in _sql_keywords or not col.replace("_", "").isalnum():
-        raise Exception(
-            f"Column name {col} is currently not allowed (only sepecial "
-            "characters '_' and no SQL keywords)."
-        )
 
 
 @contextmanager
@@ -393,7 +372,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
                     {k: "NUMERIC" for k in missing_cols}
                 )  # type not known
                 for col in [col for col in new_row.columns if col not in db_col_set]:
-                    _ensure_allowed_col_name(col)
+                    _ensure_allowed_sql_name(col)
                     con.execute(
                         f"ALTER TABLE geschichtsseiten ADD COLUMN {col} {dtype_dict[col]}"
                     )

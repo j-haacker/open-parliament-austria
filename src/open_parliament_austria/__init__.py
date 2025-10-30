@@ -6,6 +6,7 @@ from aiohttp import ClientSession
 from datetime import datetime
 import json
 import numpy as np
+from open_parliament_austria.resources import _sql_keywords
 import os
 import pandas as pd
 from pathlib import Path
@@ -21,6 +22,22 @@ def lib_data():
 
 def raw_data():
     return lib_data() / "data" / "raw"
+
+
+def _ensure_allowed_sql_name(name: str):
+    if name.upper() in _sql_keywords or not name.replace("_", "").isalnum():
+        raise Exception(
+            f"Name {name} is currently not allowed (only sepecial characters '_' and "
+            "no SQL keywords)."
+        )
+
+
+def _add_missing_db_cols(con: sqlite3.Connection, table_name: str, df: pd.DataFrame):
+    db_col_set = set(_get_colnames(con, table_name))
+    dtype_dict = {k: _sqlite3_type(df[k].dropna().iloc[0]) for k in df.columns}
+    for col in [col for col in df.columns if col not in db_col_set]:
+        _ensure_allowed_sql_name(col)
+        con.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} {dtype_dict[col]}")
 
 
 def _download_collection_metadata(
