@@ -160,41 +160,41 @@ def _create_raw_text_db_tbl():
         )
 
 
-def _download_document(idx: tuple[str, str, int]):
-    [d["documents"] for d in _query_single_value("documents", idx, "geschichtsseiten")]
-    if "docs" not in locals() or len(docs) == 0:  # noqa: F821
-        raise Exception(f"No docs for {idx}.")
-    elif len(docs) > 2:  # noqa: F821
-        # See what docs are included and implement handling
-        raise Exception(f"Not implmented. Docs:\n{repr(docs)}")  # noqa: F821
-    elif len(docs) > 1:  # noqa: F821
-        # prefer digital version
-        if any(["(elektr. übermittelte Version)" in doc["title"] for doc in docs]):  # noqa: F821
-            docs = next(
-                doc["documents"]
-                for doc in docs  # noqa: F821
-                if "(elektr. übermittelte Version)" in doc["title"]
-            )
-        # otherwise select original
-        elif any(["(gescanntes Original)" in doc["title"] for doc in docs]):
-            docs = next(
-                doc["documents"]
-                for doc in docs
-                if "(gescanntes Original)" in doc["title"]
-            )
-        else:
-            docs = docs[0]["documents"]
-    if any(["HTML" in d["type"] for d in docs]):
-        link = next(d["link"] for d in docs if "HTML" in d["type"])
-    else:
-        doc = docs[0]
-        if docs["type"] != "PDF":
-            raise Exception(f"Not implemented for type {doc['type']}.")
-        link = doc["link"]
-    path = Path(raw_data, *list(map(str, idx)))
-    asyncio.run(
-        _download_file(ClientSession(), _prepend_url(link), path / link.split("/")[-1])
-    )
+# def _download_document(idx: tuple[str, str, int]):
+#     [d["documents"] for d in _query_single_value("documents", idx, "geschichtsseiten")]
+#     if "docs" not in locals() or len(docs) == 0:  # noqa: F821
+#         raise Exception(f"No docs for {idx}.")
+#     elif len(docs) > 2:  # noqa: F821
+#         # See what docs are included and implement handling
+#         raise Exception(f"Not implmented. Docs:\n{repr(docs)}")  # noqa: F821
+#     elif len(docs) > 1:  # noqa: F821
+#         # prefer digital version
+#         if any(["(elektr. übermittelte Version)" in doc["title"] for doc in docs]):  # noqa: F821
+#             docs = next(
+#                 doc["documents"]
+#                 for doc in docs  # noqa: F821
+#                 if "(elektr. übermittelte Version)" in doc["title"]
+#             )
+#         # otherwise select original
+#         elif any(["(gescanntes Original)" in doc["title"] for doc in docs]):
+#             docs = next(
+#                 doc["documents"]
+#                 for doc in docs
+#                 if "(gescanntes Original)" in doc["title"]
+#             )
+#         else:
+#             docs = docs[0]["documents"]
+#     if any(["HTML" in d["type"] for d in docs]):
+#         link = next(d["link"] for d in docs if "HTML" in d["type"])
+#     else:
+#         doc = docs[0]
+#         if docs["type"] != "PDF":
+#             raise Exception(f"Not implemented for type {doc['type']}.")
+#         link = doc["link"]
+#     path = Path(raw_data(), *list(map(str, idx)))
+#     asyncio.run(
+#         _download_file(ClientSession(), _prepend_url(link), path / link.split("/")[-1])
+#     )
 
 
 @contextmanager
