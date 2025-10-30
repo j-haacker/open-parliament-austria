@@ -55,8 +55,7 @@ async def _download_file(session: ClientSession, url: str, target: Path):
         if res.status == 200:
             with open(target, "wb") as f:
                 async for chunk in res.content.iter_chunked(4096):
-                    if chunk:
-                        f.write(chunk)
+                    f.write(chunk)
         else:
             print(f"! Failed with {res.status}! (url: {res.url})")
 
