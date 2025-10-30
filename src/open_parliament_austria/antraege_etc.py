@@ -29,7 +29,7 @@ from open_parliament_austria import (
     _prepend_url,
     _sqlite3_type,
 )
-from open_parliament_austria.resources import _sql_keywords
+from open_parliament_austria.resources import _column_name_dict_101, _sql_keywords
 import pandas as pd
 from pathlib import Path
 import pickle
@@ -74,14 +74,24 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
 
 
 def download_global_metadata(query_dict: dict | None = None):
-    #  API results seem to undergo overhaul. column labels change
     _json = _download_collection_metadata(dataset="antraege", query_dict=query_dict)
     header = (
         pd.DataFrame.from_dict(_json["header"])
         .apply(lambda x: x == "1" if x.name.startswith("ist_") else x)
         .iloc[: len(_json["rows"][0])]
+        .set_index("feldId")
     )
-    global_metadata_df = pd.DataFrame(_json["rows"], columns=header.label)
+    global_metadata_df = pd.DataFrame(_json["rows"], columns=header.index)
+    global_metadata_df.drop(
+        columns=[
+            col
+            for col in global_metadata_df.columns
+            if col not in _column_name_dict_101
+        ],
+        inplace=True,
+    )
+    global_metadata_df.rename(columns=_column_name_dict_101, inplace=True)
+    global_metadata_df.dropna(axis=1, how="all", inplace=True)
 
     ## polish table
     date_col = [col for col in global_metadata_df.columns if "datum" in col.lower()]
@@ -96,38 +106,18 @@ def download_global_metadata(query_dict: dict | None = None):
         if not col.dtype == np.dtype("O") or not all(col.str.isdecimal())
         else col.astype(int)
     )
-    global_metadata_df[header[header.ist_werteliste].label] = global_metadata_df[
-        header[header.ist_werteliste].label
-    ].map(lambda x: x if x is None else np.array(literal_eval(x)))
-    global_metadata_df = (
-        global_metadata_df.drop(
-            columns=[  # columns that seem irrelevant
-                "Zustimmung aktiv",  # always ZZZZ ?
-                "Zusatz",
-                "RSS",
-                "INRNUM",  # same as INR
-                "LZ-Buttons",  # html button
-                "sysdate???",  # download timestamp
-                "WENTRY_ID",
-                "NRGP",  # same as GP_CODE
-                "Gruppe",
-            ]
-        )
-        .rename(
-            columns={  # were renamed
-                "GP": "GP_CODE",
-                "Datum (Sort)": "DATUMSORT",
-                "Phasen": "PHASEN_BIS",
-                "Klub/Fraktion": "Frak",
-                "Geschichtsseite_Url": "HIS_URL",
-            }
-        )
-        .set_index(index_col)
-        .sort_index()
+    list_col = [
+        _column_name_dict_101[idx] for idx, val in header.ist_werteliste.items() if val
+    ]
+    global_metadata_df[list_col] = global_metadata_df[list_col].map(
+        lambda x: x if x is None else np.array(literal_eval(x))
     )
+    global_metadata_df.set_index(index_col, inplace=True)
+    global_metadata_df.sort_index(inplace=True)
+
+    ## write to db
     _create_global_db_tbl()
     _add_missing_db_cols("global", global_metadata_df)
-
     append_global_metadata(global_metadata_df)
 
 

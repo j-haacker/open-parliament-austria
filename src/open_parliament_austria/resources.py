@@ -1,5 +1,45 @@
 """Store for constant objects"""
 
+_column_name_dict_101 = {  # for global metadata header of api 101
+    244: "GP_CODE",
+    245: "ITYP",
+    246: "INR",
+    247: "Zusatz",
+    250: "Datum",
+    252: "Art",
+    249: "Betreff",
+    248: "Zitation",
+    # 251: "Datum (Sort),DATUMSORT",
+    253: "PhasenS",
+    254: "Status",
+    255: "Doktyp",
+    # 256: "Zustimmung_aktiv",  # so far always "ZZZZ"
+    257: "Doktyp_Lang",
+    258: "HIS_URL",  # Geschichtsseite_Url,
+    # 259: "RSS",
+    # 260: "DATUM_VON",
+    261: "VHG",
+    262: "VHG2",
+    # 321: "LZ-Buttons",
+    341: "Personen_ID",
+    342: "Fraktionen",
+    343: "Thema",
+    344: "Schlagwort",
+    345: "EuroVoc",
+    # 1281: "sysdate???,",
+    # 821: "WENTRY_ID",
+    # 1821: "INRNUM,INRNUM",
+    # 2011: "NRGP,GP_CODE",
+    2012: "Gremium",
+    382: "Gruppe",
+    # below are not yet exported (server side)
+    # 201: "Abstimmung 3. Lesung,VOTE",
+    # 202: "Dafür,VOTE_YES",
+    # 203: "Dagegen,VOTE_NO",
+    # 703: "Abstimmungstext,VOTE_TEXT",
+    # 704: "Abstimmungskommentar,VOTE_COMMENT",
+}
+
 _sql_keywords = [
     "ABORT",
     "ACTION",
