@@ -10,7 +10,7 @@ _column_name_dict_101 = {  # for global metadata header of api 101
     249: "Betreff",
     248: "Zitation",
     # 251: "Datum (Sort),DATUMSORT",
-    253: "PhasenS",
+    253: "Phasen",
     254: "Status",
     255: "Doktyp",
     # 256: "Zustimmung_aktiv",  # so far always "ZZZZ"
@@ -39,6 +39,24 @@ _column_name_dict_101 = {  # for global metadata header of api 101
     # 703: "Abstimmungstext,VOTE_TEXT",
     # 704: "Abstimmungskommentar,VOTE_COMMENT",
 }
+
+# 211
+#   "Datum der Sitzung (dd.mm.yyyy)",
+#   "Verlinkung auf die Geschichtsseite der Sitzung",
+#   "Gesetzgebungsperiode in römischen Ziffern",
+#   "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
+#   "Nummer der Sitzung",
+#   "Kurztitel der Sitzung",
+#   "Zitation der Sitzung",
+#   "Art der Sitzung"
+#   "Plenar-Sitzung"
+#   "Datum der Sitzung (yyyy-mm-dd),
+#   "Verlinkung auf Dokumente der Stenographischen Protokolle (PDF, HTML) in strukturierter HTML-Darstellung",
+#   "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
+#   "technische Angabe",
+#   "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
+#   "Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)",
+#   "technische Angabe"
 
 _sql_keywords = [
     "ABORT",
