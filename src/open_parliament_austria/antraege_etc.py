@@ -27,9 +27,9 @@ from open_parliament_austria import (
     _get_colname_by_type,
     raw_data,
     _prepend_url,
-    _sql_keywords,
     _sqlite3_type,
 )
+from open_parliament_austria.resources import _sql_keywords
 import pandas as pd
 from pathlib import Path
 import pickle
