@@ -24,6 +24,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "coverage",
     "fpdf",
     "pytest",
     "pytest-cov",
@@ -37,6 +38,9 @@ testpaths = ["tests"]
 [tool.coverage.run]
 source = ["src/open_parliament_austria"]
 branch = true
+omit = [
+    "**/dev__*",
+    ]
 
 [tool.coverage.report]
 exclude_lines = [

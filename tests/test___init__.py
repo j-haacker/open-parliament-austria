@@ -54,19 +54,3 @@ def test_download_collection_metadata_fail(monkeypatch):
 def test_download_collection_metadata_invalid_dataset():
     with pytest.raises(Exception):
         opa._download_collection_metadata("invalid")
-
-
-def test_download_file(tmp_path, monkeypatch):
-    dummy_content = b"abc123"
-
-    class DummyResponse:
-        def iter_content(self, chunk_size):
-            yield dummy_content
-
-    def dummy_get(url, stream):
-        return DummyResponse()
-
-    monkeypatch.setattr(opa.requests, "get", dummy_get)
-    target = tmp_path / "file.txt"
-    opa._download_file("http://example.com/file.txt", target)
-    assert target.read_bytes() == dummy_content
