@@ -256,8 +256,8 @@ def pd_read_sql(
     )
 
 
-def _quote_if_str(x: Any) -> str:
-    return f"{x}" if not isinstance(x, str) else f"'{x}'"
+def _quote_if_str(x: Any) -> Any:
+    return x if not isinstance(x, str) else f"'{x}'"
 
 
 def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
