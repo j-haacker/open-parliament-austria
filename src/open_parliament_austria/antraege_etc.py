@@ -27,9 +27,9 @@ from open_parliament_austria import (
     _get_colnames,
     _get_db_connector,
     _get_pd_sql_reader,
-    raw_data,
     _prepend_url,
     _quote_if_str,
+    raw_data,
     _sqlite3_type,
 )
 from open_parliament_austria.resources import _column_name_dict_101
