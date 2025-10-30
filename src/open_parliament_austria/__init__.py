@@ -2,6 +2,7 @@
 
 __all__ = []
 
+from collections.abc import Iterable
 from aiohttp import ClientSession
 from contextlib import contextmanager
 from datetime import datetime
@@ -130,6 +131,41 @@ def _get_colname_by_type(con: sqlite3.Connection, tbl: str, _type: str) -> list[
             f"SELECT name FROM pragma_table_info('{tbl}') WHERE type = '{_type.upper()}'"
         ).fetchall()
     ]
+
+
+def _get_pd_sql_reader(index_col: list[str]):
+    def pd_read_sql(
+        con: sqlite3.Connection,
+        tablename: str,
+        columns: Iterable[str] | None = None,
+        index: Iterable[tuple[str | int]] | None = None,
+    ) -> pd.DataFrame:
+        datetime_cols = _get_colname_by_type(con, tablename, "datetime")
+        pickled_cols = _get_colname_by_type(con, tablename, "blob")
+        if columns is None:
+            columns = _get_colnames(con, tablename)
+        else:
+            columns = index_col + columns
+        query = f"SELECT {', '.join(columns)} FROM {tablename}"
+        if index is not None:
+            rowid = _get_rowid_index(con, tablename, tuple(index_col))
+            query += f" WHERE rowid IN ({', '.join(map(str, rowid.loc[index].values))})"
+        df = (
+            pd.DataFrame(con.execute(query).fetchall(), columns=columns)
+            .set_index(index_col)
+            .transform(
+                lambda col: col
+                if col.name not in datetime_cols
+                else pd.to_datetime(col)
+            )
+        )
+        return df.transform(
+            lambda col: col
+            if col.name not in pickled_cols
+            else col.map(lambda x: None if x is None else pickle.loads(x))
+        )
+
+    return pd_read_sql
 
 
 def _prepend_url(path: str) -> str:

@@ -24,10 +24,9 @@ from open_parliament_austria import (
     _download_file,
     _ensure_allowed_sql_name,
     _extract_txt_from_pdf,
-    _get_rowid_index,
     _get_colnames,
-    _get_colname_by_type,
     _get_db_connector,
+    _get_pd_sql_reader,
     raw_data,
     _prepend_url,
     _sqlite3_type,
@@ -44,6 +43,7 @@ sqlite3.register_adapter(np.int_, lambda i: int(i))
 
 db_con = _get_db_connector("metadata_api_101.db")
 index_col = ["GP_CODE", "ITYP", "INR"]
+pd_read_sql = _get_pd_sql_reader(index_col)
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
@@ -200,36 +200,6 @@ def _query_single_value(
         return _inner(con)
     with db_con() as con:
         return _inner(con)
-
-
-def pd_read_sql(
-    con: sqlite3.Connection,
-    tablename: str,
-    columns: Iterable[str] | None = None,
-    index: Iterable[tuple[str, str, int]] | None = None,
-) -> pd.DataFrame:
-    datetime_cols = _get_colname_by_type(con, tablename, "datetime")
-    pickled_cols = _get_colname_by_type(con, tablename, "blob")
-    if columns is None:
-        columns = _get_colnames(con, tablename)
-    else:
-        columns = index_col + columns
-    query = f"SELECT {', '.join(columns)} FROM {tablename}"
-    if index is not None:
-        rowid = _get_rowid_index(con, tablename, tuple(index_col))
-        query += f" WHERE rowid IN ({', '.join(map(str, rowid.loc[index].values))})"
-    df = (
-        pd.DataFrame(con.execute(query).fetchall(), columns=columns)
-        .set_index(index_col)
-        .transform(
-            lambda col: col if col.name not in datetime_cols else pd.to_datetime(col)
-        )
-    )
-    return df.transform(
-        lambda col: col
-        if col.name not in pickled_cols
-        else col.map(lambda x: None if x is None else pickle.loads(x))
-    )
 
 
 def _quote_if_str(x: Any) -> Any:
