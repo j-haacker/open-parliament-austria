@@ -42,6 +42,10 @@ sqlite3.register_adapter(np.int_, lambda i: int(i))
 index_col = ["GP_CODE", "ITYP", "INR"]
 
 
+def db_path():
+    return raw_data() / "metadata_api_101.db"
+
+
 def _add_missing_db_cols(
     table_name: str, df: pd.DataFrame, con: sqlite3.Connection | None = None
 ):
@@ -210,7 +214,8 @@ def _ensure_allowed_col_name(col: str):
 
 @contextmanager
 def get_db_connection():
-    with sqlite3.connect(raw_data / "metadata_api_101.db") as con:
+    db_path().parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path()) as con:
         yield con
 
 
@@ -324,7 +329,7 @@ def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
 
 
 def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
-    if not (raw_data / "metadata_api_101.db").is_file():
+    if not db_path().is_file():
         raise Exception(
             "Error: Database not found. Initialize database using "
             "`get_global_metadata_df(dataset, query)`."

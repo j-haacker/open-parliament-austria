@@ -6,6 +6,7 @@ from aiohttp import ClientSession
 from datetime import datetime
 import json
 import numpy as np
+import os
 import pandas as pd
 from pathlib import Path
 from pypdf import PdfReader
@@ -13,8 +14,13 @@ import requests
 import sqlite3
 from typing import Any, Literal
 
-lib_data = Path.home() / ".open-parliament-austria"
-raw_data = lib_data / "data" / "raw"
+
+def lib_data():
+    return Path(os.getenv("OPA_PATH", Path.home() / ".open-parliament-austria"))
+
+
+def raw_data():
+    return lib_data() / "data" / "raw"
 
 
 def _download_collection_metadata(
