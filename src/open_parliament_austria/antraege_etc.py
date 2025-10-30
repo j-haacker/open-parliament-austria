@@ -260,6 +260,58 @@ def _quote_if_str(x: Any) -> Any:
     return x if not isinstance(x, str) else f"'{x}'"
 
 
+def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
+    query = "SELECT raw_text FROM raw_text WHERE" + 4 * " {} = ? AND"
+
+    def _fetch():
+        return con.execute(
+            query[:-4].format(*index_col, "file_name"), [*idx, file_name]
+        ).fetchone()
+
+    with get_db_connection() as con:
+        try:
+            text = _fetch()[0]
+        except (sqlite3.OperationalError, TypeError) as err:
+            if str(err).startswith("no such table"):
+                _create_raw_text_db_tbl()
+            elif str(err) != "'NoneType' object is not subscriptable":
+                raise err
+            path = Path(raw_data(), *list(map(str, idx)), file_name)
+            if not path.exists():
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                task = loop.create_task(
+                    _download_file(
+                        ClientSession(loop=loop),
+                        _prepend_url(
+                            "/dokument/" + "/".join(list(map(str, idx)) + [file_name])
+                        ),
+                        path,
+                    )
+                )
+                loop.run_until_complete(task)
+            if path.suffix.lower() == ".pdf":
+                text = _extract_txt_from_pdf(path)
+            elif path.suffix.lower() in [".html", ".hml"]:
+                with open(path, "r") as f_in:
+                    text = BeautifulSoup(f_in.read(), "html.parser").body.text
+            else:
+                raise Exception(f"File extension not recognized: {file_name}")
+            for doc in pickle.loads(
+                _query_single_value("documents", idx, "geschichtsseiten", con)
+            ):
+                if any([d["link"].endswith(file_name) for d in doc["documents"]]):
+                    break
+            title = doc["title"]
+            con.execute(
+                "INSERT INTO raw_text VALUES(" + 5 * "?, " + "?)",
+                [*idx, file_name, title, text],
+            )
+    return text
+
+
 def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
     if not (raw_data / "metadata_api_101.db").is_file():
         raise Exception(
