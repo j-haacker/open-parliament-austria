@@ -10,6 +10,7 @@ from open_parliament_austria.resources import _sql_keywords
 import os
 import pandas as pd
 from pathlib import Path
+import pickle
 from pypdf import PdfReader
 import requests
 import sqlite3
@@ -38,6 +39,16 @@ def _add_missing_db_cols(con: sqlite3.Connection, table_name: str, df: pd.DataFr
     for col in [col for col in df.columns if col not in db_col_set]:
         _ensure_allowed_sql_name(col)
         con.execute(f"ALTER TABLE {table_name} ADD COLUMN {col} {dtype_dict[col]}")
+
+
+def _append_global_metadata(con: sqlite3.Connection, global_metadata_df: pd.DataFrame):
+    dtype_dict = {
+        k: _sqlite3_type(v)
+        for k, v in global_metadata_df.dropna(axis=0).iloc[0].items()
+    }
+    global_metadata_df.transform(
+        lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
+    ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
 
 
 def _download_collection_metadata(

@@ -20,6 +20,7 @@ from contextlib import contextmanager
 import numpy as np
 from open_parliament_austria import (
     _add_missing_db_cols,
+    _append_global_metadata,
     _download_collection_metadata,
     _download_file,
     _ensure_allowed_sql_name,
@@ -105,7 +106,7 @@ def download_global_metadata(query_dict: dict | None = None):
     _create_global_db_tbl()
     with get_db_connection() as con:
         _add_missing_db_cols(con, "global", global_metadata_df)
-    append_global_metadata(global_metadata_df)
+        _append_global_metadata(con, global_metadata_df)
 
 
 def _create_global_db_tbl():
