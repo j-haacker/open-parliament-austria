@@ -30,6 +30,9 @@ def _download_collection_metadata(
     if dataset in ["antraege"]:
         URL += "filter/data/101"
         params = {"js": "eval", "showAll": "true"}  # "export": "true" <- not necessary
+        if query_dict is None:
+            query_dict = {}
+        query_dict.update(VHG=["ANTR"])
     else:
         raise Exception(
             "Implement API parameters for this dataset. See "
