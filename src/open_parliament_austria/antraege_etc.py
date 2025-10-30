@@ -98,16 +98,25 @@ def download_global_metadata(query_dict: dict | None = None):
     global_metadata_df = (
         global_metadata_df.drop(
             columns=[  # columns that seem irrelevant
-                "Zust?",  # always ZZZZ ?
-                "ZUKZ",
-                "RSS_DESC",
+                "Zustimmung aktiv",  # always ZZZZ ?
+                "Zusatz",
+                "RSS",
                 "INRNUM",  # same as INR
                 "LZ-Buttons",  # html button
                 "sysdate???",  # download timestamp
                 "WENTRY_ID",
-                "NR_GP_CODE",  # same as GP_CODE
+                "NRGP",  # same as GP_CODE
                 "Gruppe",
             ]
+        )
+        .rename(
+            columns={  # were renamed
+                "GP": "GP_CODE",
+                "Datum (Sort)": "DATUMSORT",
+                "Phasen": "PHASEN_BIS",
+                "Klub/Fraktion": "Frak",
+                "Geschichtsseite_Url": "HIS_URL",
+            }
         )
         .set_index(index_col)
         .sort_index()
