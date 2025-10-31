@@ -2,7 +2,7 @@
 
 import pytest
 from open_parliament_austria import _get_db_connector
-from open_parliament_austria.antraege_etc import (
+from open_parliament_austria.antraege import (
     download_global_metadata,
     get_antragstext,
     get_geschichtsseiten,
@@ -32,7 +32,7 @@ def test_get_antragstext(init_db):
 
 
 def test_get_geschichtsseiten_fail(monkeypatch):
-    import open_parliament_austria.antraege_etc as mod
+    import open_parliament_austria.antraege as mod
 
     monkeypatch.setattr(mod, "db_con", _get_db_connector("xyz.db"))
     with pytest.raises(Exception, match="Error: Database not found."):

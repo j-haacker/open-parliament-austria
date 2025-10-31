@@ -8,7 +8,7 @@ import pytest
 # import pickle
 # import sqlite3
 # from unittest.mock import patch, MagicMock
-from open_parliament_austria.sitzungen_etc import (
+from open_parliament_austria.sitzungen import (
     download_global_metadata,
 )
 
