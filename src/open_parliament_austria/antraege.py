@@ -20,6 +20,7 @@ from open_parliament_austria import (
     _download_file,
     _ensure_allowed_sql_name,
     _extract_txt_from_pdf,
+    _get_child_table_creator,
     _get_coll_downloader,
     _get_colnames,
     _get_db_connector,
@@ -46,6 +47,7 @@ download_global_metadata = _get_coll_downloader(
     db_con, "antraege", index_col, index_sqltypes
 )
 query_single_value = _get_single_val_getter(db_con, index_col)
+_create_child_db_tbl = _get_child_table_creator(db_con, index_col, index_sqltypes)
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
@@ -57,22 +59,6 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
         global_metadata_df.transform(
             lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
         ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
-
-
-def _create_child_db_tbl(
-    table_name: str, columns: list[str] = [], _types: list[str] = []
-):
-    for name in [table_name, *columns, *_types]:
-        _ensure_allowed_sql_name(name)
-    sql = (
-        "CREATE TABLE IF NOT EXISTS {3}("
-        "{0} TEXT, {1} TEXT, {2} INTEGER, "
-        + ", ".join([f"{c} {t}" for c, t in zip(columns, _types)])
-        + "FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2})"
-        ")"
-    ).format(*index_col, table_name)
-    with db_con() as con:
-        con.execute(sql)
 
 
 def _create_raw_text_db_tbl():
