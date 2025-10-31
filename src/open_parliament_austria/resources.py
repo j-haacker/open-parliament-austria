@@ -56,6 +56,17 @@ _column_name_dict = {
     # 2714: "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)", #"NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
     # 2741: "Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)", #"Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)",
     # 202: "technische Angabe", #"technische Angabe"
+    ## for global metadata header of api 251
+    110: "Gremium",
+    111: "GP_CODE",
+    # 425: "gp_von",
+    112: "Sitzung",
+    113: "title",
+    114: "link",
+    115: "link_video",
+    116: "Personen_ID",
+    968: "Datum",
+    3401: "Sortier",
     ## for global metadata header of api 409
     605: "Name",
     603: "Gremium",

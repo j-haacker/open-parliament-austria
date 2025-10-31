@@ -54,7 +54,10 @@ def _append_global_metadata(con: sqlite3.Connection, global_metadata_df: pd.Data
 
 
 def _create_global_db_tbl(
-    con: sqlite3.Connection, index_col: list[str], index_sqltypes: list[str], unique_index: bool = True
+    con: sqlite3.Connection,
+    index_col: list[str],
+    index_sqltypes: list[str],
+    unique_index: bool = True,
 ):
     [_ensure_allowed_sql_name(c) for c in index_col]
     for t in index_sqltypes:
@@ -106,6 +109,9 @@ def _download_collection_metadata(
     elif dataset in ["sitzungen"]:
         URL += "filter/data/211"
         params = {"js": "eval", "showAll": "true"}
+    elif dataset in ["reden"]:
+        URL += "filter/data/251"
+        params = {"js": "eval", "showAll": "true"}
     elif dataset in ["personen"]:
         URL += "filter/data/409"
         params = {"js": "eval", "showAll": "true"}
@@ -140,7 +146,10 @@ def _extract_links_from_html(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         if df[col].dtype == np.dtype("O"):
             # print(f"{col} o-type")
-            if not df[col].dropna().empty and df[col].dropna().str.startswith("<a").all():
+            if (
+                not df[col].dropna().empty
+                and df[col].dropna().str.startswith("<a").all()
+            ):
                 # print(col, "matched")
                 # print(df[col].dropna())
                 df = df.drop(columns=col).join(
@@ -164,18 +173,23 @@ def _get_child_table_creator(
 ):
     """Creates tables that share the key of the "global" table. This is
     only possible if the KEY is UNIQUE."""
-    def _exp_func(
-        table_name: str, columns: list[str] = [], _types: list[str] = []
-    ):
+
+    def _exp_func(table_name: str, columns: list[str] = [], _types: list[str] = []):
         for name in [table_name, *columns, *_types]:
             _ensure_allowed_sql_name(name)
         sql = (
             "CREATE TABLE IF NOT EXISTS {3}("
-            + ", ".join([f"{c} {t}" for c, t in zip(index_col + columns, index_sqltypes + _types)])
+            + ", ".join(
+                [
+                    f"{c} {t}"
+                    for c, t in zip(index_col + columns, index_sqltypes + _types)
+                ]
+            )
             + ", FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2}))"
         ).format(*index_col, table_name)
         with db_con() as con:
             con.execute(sql)
+
     return _exp_func
 
 
@@ -200,7 +214,7 @@ def _get_rowid_index(
 
 def _get_coll_downloader(
     db_con: callable,
-    dataset: Literal["antraege", "sitzungen", "personen"],
+    dataset: Literal["antraege", "sitzungen", "personen", "reden"],
     index_col: list[str],
     index_sqltypes: list[str],
     unique_index: bool = True,
@@ -270,14 +284,17 @@ def _get_coll_downloader(
                     [y.strip() for y in x.split(",")] if "[" not in x else json.loads(x)
                 )
             )
-        # print(global_metadata_df.columns)
         global_metadata_df.set_index(index_col, inplace=True)
         global_metadata_df.sort_index(inplace=True)
         global_metadata_df.dropna(axis=1, how="all", inplace=True)
-        # print(global_metadata_df.to_string())
+        # print(global_metadata_df)
+
+        # raise Exception(f"{global_metadata_df}")
 
         with db_con() as con:
-            _create_global_db_tbl(con, index_col, index_sqltypes, unique_index=unique_index)
+            _create_global_db_tbl(
+                con, index_col, index_sqltypes, unique_index=unique_index
+            )
             _add_missing_db_cols(con, "global", global_metadata_df)
             _append_global_metadata(con, global_metadata_df)
 
