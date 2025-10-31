@@ -136,10 +136,47 @@ async def _download_file(session: ClientSession, url: str, target: Path):
             print(f"! Failed with {res.status}! (url: {res.url})")
 
 
+def _extract_links_from_html(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        if df[col].dtype == np.dtype("O"):
+            # print(f"{col} o-type")
+            if not df[col].dropna().empty and df[col].dropna().str.startswith("<a").all():
+                # print(col, "matched")
+                # print(df[col].dropna())
+                df = df.drop(columns=col).join(
+                    pd.DataFrame.from_records(df[col]), rsuffix="_attr"
+                )
+        # else:
+        #     print(col, df[col].dtype)
+    return df
+
+
 def _extract_txt_from_pdf(pdf_file: Path | str):
     reader = PdfReader(pdf_file)
     pages = reader.pages
     return "\n".join([p.extract_text() for p in pages])
+
+
+def _get_child_table_creator(
+    db_con: callable,
+    index_col: list[str],
+    index_sqltypes: list[str],
+):
+    """Creates tables that share the key of the "global" table. This is
+    only possible if the KEY is UNIQUE."""
+    def _exp_func(
+        table_name: str, columns: list[str] = [], _types: list[str] = []
+    ):
+        for name in [table_name, *columns, *_types]:
+            _ensure_allowed_sql_name(name)
+        sql = (
+            "CREATE TABLE IF NOT EXISTS {3}("
+            + ", ".join([f"{c} {t}" for c, t in zip(index_col + columns, index_sqltypes + _types)])
+            + ", FOREIGN KEY ({0}, {1}, {2}) REFERENCES global({0}, {1}, {2}))"
+        ).format(*index_col, table_name)
+        with db_con() as con:
+            con.execute(sql)
+    return _exp_func
 
 
 def _get_db_connector(file_name: str) -> callable:
