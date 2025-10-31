@@ -100,6 +100,9 @@ def _download_collection_metadata(
         query_dict.update(VHG=["ANTR"])
     elif dataset in ["sitzungen"]:
         URL += "filter/data/211"
+        params = {"js": "eval", "showAll": "true"}
+    elif dataset in ["personen"]:
+        URL += "filter/data/409"
         params = {"js": "eval", "showAll": "true"}  # "export": "true" <- not necessary
     else:
         raise Exception(
