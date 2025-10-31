@@ -11,6 +11,7 @@ from open_parliament_austria import (
     _ensure_allowed_sql_name,
     _extract_txt_from_pdf,
     _prepend_url,
+    _quote_if_str,
     _sqlite3_type,
 )
 from fpdf import FPDF
@@ -19,6 +20,11 @@ from fpdf import FPDF
 def test_prepend_url():
     path = "/foo/bar"
     assert _prepend_url(path) == "https://www.parlament.gv.at/foo/bar"
+
+
+def test__quote_if_str():
+    assert _quote_if_str(0) == 0
+    assert _quote_if_str("0") == "'0'"
 
 
 def test_extract_txt_from_pdf(tmp_path):

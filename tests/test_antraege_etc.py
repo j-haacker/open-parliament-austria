@@ -7,13 +7,7 @@ from open_parliament_austria.antraege_etc import (
     get_antragstext,
     get_geschichtsseiten,
     get_global_metadata_df,
-    _quote_if_str,
 )
-
-
-def test__quote_if_str():
-    assert _quote_if_str(0) == 0
-    assert _quote_if_str("0") == "'0'"
 
 
 @pytest.fixture(scope="module")
