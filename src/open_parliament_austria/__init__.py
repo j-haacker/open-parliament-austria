@@ -77,7 +77,7 @@ def _deflate_columns(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         if df[col].dtype == np.dtype("O"):
             # print(f"{col} o-type")
-            if not df[col].dropna().empty and df[col].dropna().str.match(" *\{").all():
+            if not df[col].dropna().empty and df[col].dropna().str.match(r" *\{").all():
                 # print(col, "matched")
                 # print(df[col].dropna())
                 df = df.drop(columns=col).join(
@@ -91,10 +91,13 @@ def _deflate_columns(df: pd.DataFrame) -> pd.DataFrame:
 def _download_collection_metadata(
     dataset: Literal["antraege"], query_dict: dict | None = None
 ):
+    # according to the docs, some of the API endpoints require an
+    # "export": "true" parameter. However, this didn't seem actually
+    # necessary so far.
     URL = _prepend_url("/Filter/api/")
     if dataset in ["antraege"]:
         URL += "filter/data/101"
-        params = {"js": "eval", "showAll": "true"}  # "export": "true" <- not necessary
+        params = {"js": "eval", "showAll": "true"}
         if query_dict is None:
             query_dict = {}
         query_dict.update(VHG=["ANTR"])
@@ -103,7 +106,7 @@ def _download_collection_metadata(
         params = {"js": "eval", "showAll": "true"}
     elif dataset in ["personen"]:
         URL += "filter/data/409"
-        params = {"js": "eval", "showAll": "true"}  # "export": "true" <- not necessary
+        params = {"js": "eval", "showAll": "true"}
     else:
         raise Exception(
             "Implement API parameters for this dataset. See "
