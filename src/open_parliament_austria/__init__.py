@@ -217,7 +217,7 @@ def _get_coll_downloader(
                     [y.strip() for y in x.split(",")] if "[" not in x else json.loads(x)
                 )
             )
-        print(global_metadata_df.columns)
+        # print(global_metadata_df.columns)
         global_metadata_df.set_index(index_col, inplace=True)
         global_metadata_df.sort_index(inplace=True)
         global_metadata_df.dropna(axis=1, how="all", inplace=True)
