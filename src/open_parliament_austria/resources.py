@@ -40,23 +40,24 @@ _column_name_dict_101 = {  # for global metadata header of api 101
     # 704: "Abstimmungskommentar,VOTE_COMMENT",
 }
 
-# 211
-#   "Datum der Sitzung (dd.mm.yyyy)",
-#   "Verlinkung auf die Geschichtsseite der Sitzung",
-#   "Gesetzgebungsperiode in römischen Ziffern",
-#   "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
-#   "Nummer der Sitzung",
-#   "Kurztitel der Sitzung",
-#   "Zitation der Sitzung",
-#   "Art der Sitzung"
-#   "Plenar-Sitzung"
-#   "Datum der Sitzung (yyyy-mm-dd),
-#   "Verlinkung auf Dokumente der Stenographischen Protokolle (PDF, HTML) in strukturierter HTML-Darstellung",
-#   "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
-#   "technische Angabe",
-#   "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
-#   "Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)",
-#   "technische Angabe"
+_column_name_dict_211 = {
+    2701: "Datum",  # "Datum der Sitzung (dd.mm.yyyy)",
+    2710: "HIS_URL",  # "Verlinkung auf die Geschichtsseite der Sitzung",
+    2702: "Periode",  # "Gesetzgebungsperiode in römischen Ziffern",
+    2703: "Gremium",  # "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
+    2704: "Nummer",  # "Nummer der Sitzung",
+    2705: "Kurztitel",  # "Kurztitel der Sitzung",
+    2713: "Zitation",  # "Zitation der Sitzung",
+    2706: "Art",  # "Art der Sitzung"
+    2707: "Plenar_Sitzung",  # "Plenar-Sitzung"
+    # 2708: "Datum", #Datum der Sitzung (yyyy-mm-dd),
+    # 2709: "Verlinkung auf Dokumente der Stenographischen Protokolle (PDF, HTML) in strukturierter HTML-Darstellung", #"Verlinkung auf Dokumente der Stenographischen Protokolle (PDF, HTML) in strukturierter HTML-Darstellung",
+    # 2711: "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)", #"NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
+    # 2712: "technische Angabe", #"technische Angabe",
+    # 2714: "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)", #"NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
+    # 2741: "Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)", #"Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)",
+    # 202: "technische Angabe", #"technische Angabe"
+}
 
 _sql_keywords = [
     "ABORT",

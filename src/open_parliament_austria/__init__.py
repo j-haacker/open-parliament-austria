@@ -63,6 +63,9 @@ def _download_collection_metadata(
         if query_dict is None:
             query_dict = {}
         query_dict.update(VHG=["ANTR"])
+    elif dataset in ["sitzungen"]:
+        URL += "filter/data/211"
+        params = {"js": "eval", "showAll": "true"}  # "export": "true" <- not necessary
     else:
         raise Exception(
             "Implement API parameters for this dataset. See "
