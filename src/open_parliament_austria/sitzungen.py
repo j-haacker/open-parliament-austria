@@ -18,21 +18,17 @@ __all__ = []
 # from contextlib import contextmanager
 import numpy as np
 from open_parliament_austria import (
-    _add_missing_db_cols,
-    _append_global_metadata,
-    _download_collection_metadata,
-    #     _download_file,
     _ensure_allowed_sql_name,
     #     _extract_txt_from_pdf,
     #     _get_rowid_index,
-    _get_colnames,
-    #     _get_colname_by_type,
+    _get_coll_downloader,
     _get_db_connector,
     _get_pd_sql_reader,
     #     _prepend_url,
     #     _sqlit/e3_type,
 )
-from open_parliament_austria.resources import _column_name_dict_211
+
+# from open_parliament_austria.resources import _column_name_dict_211
 import pandas as pd
 
 # from pathlib import Path
@@ -45,73 +41,11 @@ sqlite3.register_adapter(np.int_, lambda i: int(i))
 
 db_con = _get_db_connector("metadata_api_211.db")
 index_col = ["Periode", "Gremium", "Nummer"]
+index_sqltypes = ["TEXT", "TEXT", "INTEGER"]
 pd_read_sql = _get_pd_sql_reader(index_col)
-
-
-def download_global_metadata(query_dict: dict | None = None):
-    _json = _download_collection_metadata(dataset="sitzungen", query_dict=query_dict)
-    # header = pd.DataFrame.from_dict(_json["header"])
-    # header.to_csv("tmp_header.csv")
-    # pd.DataFrame.from_dict(_json["rows"]).to_csv("tmp_rows.csv")
-    # print(header.to_string())
-    header = (
-        pd.DataFrame.from_dict(_json["header"])
-        .apply(lambda x: x == "1" if x.name.startswith("ist_") else x)
-        .iloc[: len(_json["rows"][0])]
-        .set_index("feldId")
-    )
-    global_metadata_df = pd.DataFrame(_json["rows"], columns=header.index)
-    global_metadata_df.drop(
-        columns=[
-            col
-            for col in global_metadata_df.columns
-            if col not in _column_name_dict_211
-        ],
-        inplace=True,
-    )
-    global_metadata_df.rename(columns=_column_name_dict_211, inplace=True)
-    global_metadata_df.dropna(axis=1, how="all", inplace=True)
-
-    ## polish table
-    date_col = [col for col in global_metadata_df.columns if "datum" in col.lower()]
-    global_metadata_df[date_col] = global_metadata_df[date_col].apply(pd.to_datetime)
-    global_metadata_df = global_metadata_df.apply(
-        lambda col: col
-        if not col.dtype == np.dtype("O")
-        else col.str.replace("null", "None")
-    )
-    global_metadata_df = global_metadata_df.apply(
-        lambda col: col
-        if not col.dtype == np.dtype("O") or not all(col.str.isdecimal())
-        else col.astype(int)
-    )
-    # list_col = [
-    #     _column_name_dict_211[idx] for idx, val in header.ist_werteliste.items() if val
-    # ]
-    # global_metadata_df[list_col] = global_metadata_df[list_col].map(
-    #     lambda x: x if x is None else np.array(literal_eval(x))
-    # )
-    global_metadata_df.set_index(index_col, inplace=True)
-    global_metadata_df.sort_index(inplace=True)
-    print(global_metadata_df.to_string())
-
-    ## write to db
-    with db_con() as con:
-        print(_get_colnames(con, "global"))
-    _create_global_db_tbl()
-    with db_con() as con:
-        _add_missing_db_cols(con, "global", global_metadata_df)
-        _append_global_metadata(con, global_metadata_df)
-
-
-def _create_global_db_tbl():
-    with db_con() as con:
-        sql = (
-            "CREATE TABLE IF NOT EXISTS global({0} TEXT, {1} TEXT, {2} INTEGER); "
-            "CREATE UNIQUE INDEX IF NOT EXISTS ix_global_{0}_{1}_{2} ON global({0}, {1}, {2});"
-        )
-        print(sql.format(*index_col))
-        con.executescript(sql.format(*index_col))
+download_global_metadata = _get_coll_downloader(
+    db_con, "sitzungen", index_col, index_sqltypes
+)
 
 
 def _create_child_db_tbl(

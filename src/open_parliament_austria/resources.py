@@ -1,6 +1,7 @@
 """Store for constant objects"""
 
-_column_name_dict_101 = {  # for global metadata header of api 101
+_column_name_dict = {
+    ## for global metadata header of api 101
     244: "GP_CODE",
     245: "ITYP",
     246: "INR",
@@ -38,9 +39,7 @@ _column_name_dict_101 = {  # for global metadata header of api 101
     # 203: "Dagegen,VOTE_NO",
     # 703: "Abstimmungstext,VOTE_TEXT",
     # 704: "Abstimmungskommentar,VOTE_COMMENT",
-}
-
-_column_name_dict_211 = {
+    ## for global metadata header of api 211
     2701: "Datum",  # "Datum der Sitzung (dd.mm.yyyy)",
     2710: "HIS_URL",  # "Verlinkung auf die Geschichtsseite der Sitzung",
     2702: "Periode",  # "Gesetzgebungsperiode in römischen Ziffern",
@@ -57,6 +56,25 @@ _column_name_dict_211 = {
     # 2714: "NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)", #"NRSITZ (Nationalrat) oder BRSITZ (Bundesrat)",
     # 2741: "Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)", #"Verlinkung auf die Geschichtsseite der Sitzung - Abschnitt Protokoll - (vorläufiges Protokoll)",
     # 202: "technische Angabe", #"technische Angabe"
+    ## for global metadata header of api 409
+    605: "Name",
+    603: "Gremium",
+    # 604: "WENTRY_ID",
+    623: "gender",
+    # 624: "gender_full",
+    863: "GP_CODE",
+    # 864: "Fraktionen",
+    643: "_deflatable",
+    903: "ist_praes",
+    1223: "vorname",
+    1224: "nachname",
+    # 1225: "akgr",
+    # 1226: "akgr_h",
+    # 7120: "Fraktionen_full",
+    7121: "Wahlkreis",
+    7180: "PERS_URL",
+    ## for automatically deflated (without "feldId")
+    "pad_intern": "Personen_ID",
 }
 
 _sql_keywords = [

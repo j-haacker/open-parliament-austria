@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from datetime import datetime
 import json
 import numpy as np
-from open_parliament_austria.resources import _sql_keywords
+from open_parliament_austria.resources import _column_name_dict, _sql_keywords
 import os
 import pandas as pd
 from pathlib import Path
@@ -51,6 +51,41 @@ def _append_global_metadata(con: sqlite3.Connection, global_metadata_df: pd.Data
     global_metadata_df.transform(
         lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
     ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
+
+
+def _create_global_db_tbl(
+    con: sqlite3.Connection, index_col: list[str], index_sqltypes: list[str]
+):
+    [_ensure_allowed_sql_name(c) for c in index_col]
+    for t in index_sqltypes:
+        if t not in ["INTEGER", "TEXT", "NUMERIC"]:
+            raise Exception(f"Type {t} is not supported as index column.")
+    sql = (
+        "CREATE TABLE IF NOT EXISTS global("
+        + ", ".join([f"{c} {t}" for c, t in zip(index_col, index_sqltypes)])
+        + "); CREATE UNIQUE INDEX IF NOT EXISTS ix_global_"
+        + "_".join([f"{c}" for c in index_col])
+        + " ON global("
+        + ", ".join(index_col)
+        + ");"
+    )
+    # print(sql.format(*index_col))
+    con.executescript(sql)
+
+
+def _deflate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        if df[col].dtype == np.dtype("O"):
+            # print(f"{col} o-type")
+            if not df[col].dropna().empty and df[col].dropna().str.match(" *\{").all():
+                # print(col, "matched")
+                # print(df[col].dropna())
+                df = df.drop(columns=col).join(
+                    pd.DataFrame.from_records(df[col]), rsuffix="_attr"
+                )
+        # else:
+        #     print(col, df[col].dtype)
+    return df
 
 
 def _download_collection_metadata(
@@ -116,6 +151,85 @@ def _get_rowid_index(
         con.execute(f"SELECT {' ,'.join(index_col)}, rowid FROM {tbl}").fetchall(),
         columns=[*(index_col), "rowid"],
     ).set_index(list(index_col))["rowid"]
+
+
+def _get_coll_downloader(
+    db_con: callable,
+    dataset: Literal["antraege", "sitzungen", "personen"],
+    index_col: list[str],
+    index_sqltypes: list[str],
+):
+    def _exp_func(query_dict: dict | None = None):
+        _json = _download_collection_metadata(dataset=dataset, query_dict=query_dict)
+        # print(f"{_json["count"]} rows")
+        # header = pd.DataFrame.from_dict(_json["header"])
+        # header.to_csv("tmp_header.csv")
+        # pd.DataFrame.from_dict(_json["rows"]).to_csv("tmp_rows.csv")
+        # print(header.to_string())
+        header = (
+            pd.DataFrame.from_dict(_json["header"])
+            .apply(lambda x: x == "1" if x.name.startswith("ist_") else x)
+            .iloc[: len(_json["rows"][0])]
+            .set_index("feldId")
+        )
+        global_metadata_df = pd.DataFrame(_json["rows"], columns=header.index)
+        global_metadata_df.drop(
+            columns=[
+                col
+                for col in global_metadata_df.columns
+                if col not in _column_name_dict
+            ],
+            inplace=True,
+        )
+
+        ## polish table
+        global_metadata_df = _deflate_columns(
+            global_metadata_df
+        )  # before null conversion
+        global_metadata_df = global_metadata_df.apply(
+            lambda col: col
+            if not col.dtype == np.dtype("O")
+            else col.str.replace("null", "None")
+        )
+        global_metadata_df.rename(columns=_column_name_dict, inplace=True)
+        date_col = [col for col in global_metadata_df.columns if "datum" in col.lower()]
+        global_metadata_df[date_col] = global_metadata_df[date_col].apply(
+            pd.to_datetime
+        )
+        global_metadata_df = global_metadata_df.apply(
+            lambda col: col
+            if not col.dtype == np.dtype("O") or not all(col.str.isdecimal())
+            else col.astype(int)
+        )
+        if "ist_werteliste" in header:
+            list_col = [
+                _column_name_dict[idx]
+                for idx, val in header.ist_werteliste.items()
+                if val
+            ]
+            global_metadata_df[list_col] = global_metadata_df[list_col].map(
+                lambda x: x
+                if x is None
+                else np.array(
+                    [y.strip() for y in x.split(",")] if "[" not in x else json.loads(x)
+                )
+            )
+        print(global_metadata_df.columns)
+        global_metadata_df.set_index(index_col, inplace=True)
+        global_metadata_df.sort_index(inplace=True)
+        global_metadata_df.dropna(axis=1, how="all", inplace=True)
+        # print(global_metadata_df.to_string())
+
+        ## write to db
+        # with db_con() as con:
+        #     print(_get_colnames(con, "global"))
+        # _create_global_db_tbl()
+        with db_con() as con:
+            _create_global_db_tbl(con, index_col, index_sqltypes)
+            _add_missing_db_cols(con, "global", global_metadata_df)
+            _append_global_metadata(con, global_metadata_df)
+
+    return _exp_func
 
 
 def _get_colnames(con: sqlite3.Connection, tbl: str) -> list[str]:

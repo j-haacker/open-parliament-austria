@@ -13,17 +13,14 @@ __all__ = []
 
 from aiohttp import ClientSession
 import asyncio
-from ast import literal_eval
 from bs4 import BeautifulSoup
 from collections.abc import Iterable
 import numpy as np
 from open_parliament_austria import (
-    _add_missing_db_cols,
-    _append_global_metadata,
-    _download_collection_metadata,
     _download_file,
     _ensure_allowed_sql_name,
     _extract_txt_from_pdf,
+    _get_coll_downloader,
     _get_colnames,
     _get_db_connector,
     _get_pd_sql_reader,
@@ -32,7 +29,6 @@ from open_parliament_austria import (
     raw_data,
     _sqlite3_type,
 )
-from open_parliament_austria.resources import _column_name_dict_101
 import pandas as pd
 from pathlib import Path
 import pickle
@@ -44,7 +40,11 @@ sqlite3.register_adapter(np.int_, lambda i: int(i))
 
 db_con = _get_db_connector("metadata_api_101.db")
 index_col = ["GP_CODE", "ITYP", "INR"]
+index_sqltypes = ["TEXT", "TEXT", "INTEGER"]
 pd_read_sql = _get_pd_sql_reader(index_col)
+download_global_metadata = _get_coll_downloader(
+    db_con, "antraege", index_col, index_sqltypes
+)
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
@@ -56,64 +56,6 @@ def append_global_metadata(global_metadata_df: pd.DataFrame):
         global_metadata_df.transform(
             lambda col: col if dtype_dict[col.name] != "BLOB" else col.map(pickle.dumps)
         ).to_sql("global", con=con, if_exists="append", dtype=dtype_dict)
-
-
-def download_global_metadata(query_dict: dict | None = None):
-    _json = _download_collection_metadata(dataset="antraege", query_dict=query_dict)
-    header = (
-        pd.DataFrame.from_dict(_json["header"])
-        .apply(lambda x: x == "1" if x.name.startswith("ist_") else x)
-        .iloc[: len(_json["rows"][0])]
-        .set_index("feldId")
-    )
-    global_metadata_df = pd.DataFrame(_json["rows"], columns=header.index)
-    global_metadata_df.drop(
-        columns=[
-            col
-            for col in global_metadata_df.columns
-            if col not in _column_name_dict_101
-        ],
-        inplace=True,
-    )
-    global_metadata_df.rename(columns=_column_name_dict_101, inplace=True)
-    global_metadata_df.dropna(axis=1, how="all", inplace=True)
-
-    ## polish table
-    date_col = [col for col in global_metadata_df.columns if "datum" in col.lower()]
-    global_metadata_df[date_col] = global_metadata_df[date_col].apply(pd.to_datetime)
-    global_metadata_df = global_metadata_df.apply(
-        lambda col: col
-        if not col.dtype == np.dtype("O")
-        else col.str.replace("null", "None")
-    )
-    global_metadata_df = global_metadata_df.apply(
-        lambda col: col
-        if not col.dtype == np.dtype("O") or not all(col.str.isdecimal())
-        else col.astype(int)
-    )
-    list_col = [
-        _column_name_dict_101[idx] for idx, val in header.ist_werteliste.items() if val
-    ]
-    global_metadata_df[list_col] = global_metadata_df[list_col].map(
-        lambda x: x if x is None else np.array(literal_eval(x))
-    )
-    global_metadata_df.set_index(index_col, inplace=True)
-    global_metadata_df.sort_index(inplace=True)
-
-    ## write to db
-    _create_global_db_tbl()
-    with db_con() as con:
-        _add_missing_db_cols(con, "global", global_metadata_df)
-        _append_global_metadata(con, global_metadata_df)
-
-
-def _create_global_db_tbl():
-    with db_con() as con:
-        sql = (
-            "CREATE TABLE IF NOT EXISTS global({0} TEXT, {1} TEXT, {2} INTEGER); "
-            "CREATE UNIQUE INDEX IF NOT EXISTS ix_global_GP_CODE_ITYP_INR ON global({0}, {1}, {2});"
-        )
-        con.executescript(sql.format(*index_col))
 
 
 def _create_child_db_tbl(
