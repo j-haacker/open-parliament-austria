@@ -232,10 +232,20 @@ def _get_coll_downloader(
         global_metadata_df = _deflate_columns(
             global_metadata_df
         )  # before null conversion
-        global_metadata_df = global_metadata_df.apply(
+        global_metadata_df = global_metadata_df.transform(
             lambda col: col
             if not col.dtype == np.dtype("O")
             else col.str.replace("null", "None")
+        )
+        global_metadata_df = global_metadata_df.transform(
+            lambda col: col
+            if (
+                not col.dtype == np.dtype("O")
+                or col.dropna().empty
+                # qick'n'dirty: extract links, accept NaN where text
+                or not col.dropna().str.startswith("<a").any()
+            )
+            else col.str.extract("<a [>]*href=[\"']([^\"']*)[\"'].*", expand=False)
         )
         global_metadata_df.rename(columns=_column_name_dict, inplace=True)
         date_col = [col for col in global_metadata_df.columns if "datum" in col.lower()]
