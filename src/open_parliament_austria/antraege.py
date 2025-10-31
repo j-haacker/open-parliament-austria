@@ -24,6 +24,7 @@ from open_parliament_austria import (
     _get_colnames,
     _get_db_connector,
     _get_pd_sql_reader,
+    _get_single_val_getter,
     _prepend_url,
     _quote_if_str,
     raw_data,
@@ -34,7 +35,6 @@ from pathlib import Path
 import pickle
 import requests
 import sqlite3
-from typing import Any, Literal
 
 sqlite3.register_adapter(np.int_, lambda i: int(i))
 
@@ -45,6 +45,7 @@ pd_read_sql = _get_pd_sql_reader(index_col)
 download_global_metadata = _get_coll_downloader(
     db_con, "antraege", index_col, index_sqltypes
 )
+query_single_value = _get_single_val_getter(db_con, index_col)
 
 
 def append_global_metadata(global_metadata_df: pd.DataFrame):
@@ -122,29 +123,6 @@ def _create_raw_text_db_tbl():
 #     )
 
 
-def _query_single_value(
-    col: str,
-    idx: tuple[str, str, int],
-    tbl: Literal["global", "geschichtsseiten", "raw_text"] = "global",
-    con: sqlite3.Connection | None = None,
-) -> Any:
-    # print(idx)
-    if tbl not in ["global", "geschichtsseiten", "raw_text"]:
-        raise Exception(f"Table name {tbl} not allowed.")
-
-    def _inner(con: sqlite3.Connection):
-        if col not in _get_colnames(con, tbl):
-            raise Exception(f"Column name {col} not in {_get_colnames(con, tbl)}.")
-        return con.execute(
-            f"SELECT {col} FROM {tbl} WHERE GP_CODE = ? AND ITYP = ? AND INR = ?", idx
-        ).fetchone()[0]
-
-    if con:
-        return _inner(con)
-    with db_con() as con:
-        return _inner(con)
-
-
 def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
     query = "SELECT raw_text FROM raw_text WHERE" + 4 * " {} = ? AND"
 
@@ -185,7 +163,7 @@ def get_antragstext(idx: tuple[str, str, int], file_name: str) -> str:
             else:
                 raise Exception(f"File extension not recognized: {file_name}")
             for doc in pickle.loads(
-                _query_single_value("documents", idx, "geschichtsseiten", con)
+                query_single_value("documents", idx, "geschichtsseiten", con)
             ):
                 if any([d["link"].endswith(file_name) for d in doc["documents"]]):
                     break
@@ -222,7 +200,7 @@ def get_geschichtsseiten(index: Iterable[tuple[str, str, int]]) -> pd.DataFrame:
                 is None
             ):
                 _dict = requests.get(
-                    _prepend_url(_query_single_value("HIS_URL", idx, "global", con)),
+                    _prepend_url(query_single_value("HIS_URL", idx, "global", con)),
                     {"json": "True"},
                 ).json()["content"]
                 [

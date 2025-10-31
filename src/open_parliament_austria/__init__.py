@@ -292,6 +292,34 @@ def _prepend_url(path: str) -> str:
     return "https://www.parlament.gv.at" + path
 
 
+def _get_single_val_getter(db_con: callable, index_col: list[str]):
+    def _exp_func(
+        col: str,
+        idx,
+        tbl: str = "global",
+        con: sqlite3.Connection | None = None,
+    ) -> Any:
+        # print(idx)
+        if tbl not in [n[0] for n in con.execute("SELECT name FROM sqlite_master")]:
+            raise Exception(f"Table name {tbl} not in database.")
+
+        def _inner(con):
+            if col not in _get_colnames(con, tbl):
+                raise Exception(f"Column name {col} not in {_get_colnames(con, tbl)}.")
+            return con.execute(
+                f"SELECT {col} FROM {tbl} WHERE "
+                + " AND ".join([f"{c} = ?" for c in index_col]),
+                idx,
+            ).fetchone()[0]
+
+        if con:
+            return _inner(con)
+        with db_con() as con:
+            return _inner(con)
+
+    return _exp_func
+
+
 def _quote_if_str(x: Any) -> Any:
     return x if not isinstance(x, str) else f"'{x}'"
 
