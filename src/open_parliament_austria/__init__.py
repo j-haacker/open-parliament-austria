@@ -54,16 +54,18 @@ def _append_global_metadata(con: sqlite3.Connection, global_metadata_df: pd.Data
 
 
 def _create_global_db_tbl(
-    con: sqlite3.Connection, index_col: list[str], index_sqltypes: list[str]
+    con: sqlite3.Connection, index_col: list[str], index_sqltypes: list[str], unique_index: bool = True
 ):
     [_ensure_allowed_sql_name(c) for c in index_col]
     for t in index_sqltypes:
-        if t not in ["INTEGER", "TEXT", "NUMERIC"]:
+        if t not in ["INTEGER", "TEXT", "NUMERIC", "DATETIME"]:
             raise Exception(f"Type {t} is not supported as index column.")
     sql = (
         "CREATE TABLE IF NOT EXISTS global("
         + ", ".join([f"{c} {t}" for c, t in zip(index_col, index_sqltypes)])
-        + "); CREATE UNIQUE INDEX IF NOT EXISTS ix_global_"
+        + "); CREATE "
+        + ("UNIQUE " if unique_index else "")
+        + "INDEX IF NOT EXISTS ix_global_"
         + "_".join([f"{c}" for c in index_col])
         + " ON global("
         + ", ".join(index_col)
@@ -164,6 +166,7 @@ def _get_coll_downloader(
     dataset: Literal["antraege", "sitzungen", "personen"],
     index_col: list[str],
     index_sqltypes: list[str],
+    unique_index: bool = True,
 ):
     def _exp_func(query_dict: dict | None = None):
         _json = _download_collection_metadata(dataset=dataset, query_dict=query_dict)
@@ -226,12 +229,8 @@ def _get_coll_downloader(
         global_metadata_df.dropna(axis=1, how="all", inplace=True)
         # print(global_metadata_df.to_string())
 
-        ## write to db
-        # with db_con() as con:
-        #     print(_get_colnames(con, "global"))
-        # _create_global_db_tbl()
         with db_con() as con:
-            _create_global_db_tbl(con, index_col, index_sqltypes)
+            _create_global_db_tbl(con, index_col, index_sqltypes, unique_index=unique_index)
             _add_missing_db_cols(con, "global", global_metadata_df)
             _append_global_metadata(con, global_metadata_df)
 
